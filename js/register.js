@@ -65,7 +65,7 @@ async function handleRegister(event) {
     }
 
     try {
-        const response = await fetch("http://localhost:3000/users");
+        const response = await fetch("https://json-server-vpom.onrender.com/users");
         const users = await response.json();
         const userExists = users.some(u => u.phone === phoneNumber);
 
@@ -74,7 +74,7 @@ async function handleRegister(event) {
             return;
         }
 
-        await fetch("http://localhost:3000/users", {
+        await fetch("https://json-server-vpom.onrender.com/users", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name, phone: phoneNumber })

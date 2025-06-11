@@ -60,7 +60,7 @@ async function handleLogin(event) {
     }
 
     try {
-        const response = await fetch(`http://localhost:3000/users?phone=${phoneNumber}`);
+        const response = await fetch(`https://json-server-vpom.onrender.com/users?phone=${phoneNumber}`);
         const users = await response.json();
 
         if (users.length > 0) {

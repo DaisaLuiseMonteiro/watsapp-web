@@ -83,7 +83,7 @@ export function renderHome() {
 // Chargement des contacts
 async function loadContacts() {
     try {
-        const response = await fetch("http://localhost:3000/users");
+        const response = await fetch("https://json-server-vpom.onrender.com/users");
         const users = await response.json();
         const contactsList = document.getElementById("contactsList");
         contactsList.innerHTML = "";
@@ -138,7 +138,7 @@ function openChat(user) {
 // Chargement des messages
 async function loadMessages(userId) {
     try {
-        const response = await fetch("http://localhost:3000/messages");
+        const response = await fetch("https://json-server-vpom.onrender.com/messages");
         const allMessages = await response.json();
         const messagesDiv = document.getElementById("messages");
 
@@ -165,7 +165,7 @@ async function sendMessage(receiverId) {
     const content = input.value.trim();
     if (!content) return;
 
-    await fetch("http://localhost:3000/messages", {
+    await fetch("https://json-server-vpom.onrender.com/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ senderId: "currentUser", receiverId, content, timestamp: Date.now(), status: "sent" })
