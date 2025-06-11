@@ -1,0 +1,121 @@
+{
+  "users": [
+    {
+      "id": "user1",
+      "phone": "33123456789",
+      "name": "soli",
+      "status": "Disponible",
+      "avatar": "https://ui-avatars.com/api/?name=Jean+Dupont&background=25d366&color=fff",
+      "isOnline": true,
+      "lastSeen": 1704387600000,
+      "createdAt": 1704387600000
+    },
+    {
+      "id": "user2",
+      "phone": "33987654321",
+      "name": "Marietou sy",
+      "status": "Occupée",
+      "avatar": "https://ui-avatars.com/api/?name=Marie+Martin&background=25d366&color=fff",
+      "isOnline": false,
+      "lastSeen": 1704387300000,
+      "createdAt": 1704387300000
+    },
+    {
+      "id": "b1e4",
+      "name": "Maina ",
+      "phone": "+221 775312571"
+    },
+    {
+      "id": "dded",
+      "name": "Anna",
+      "phone": "+221771832623"
+    },
+    {
+      "id": "985a",
+      "name": "fghj",
+      "phone": "3456"
+    },
+    {
+      "id": "10b9",
+      "name": "loulou",
+      "phone": "1234"
+    }
+  ],
+  "chats": [
+    {
+      "id": "user1_user2",
+      "participants": [
+        "user1",
+        "user2"
+      ],
+      "createdAt": 1704387600000,
+      "lastMessage": "Salut ! Comment ça va ?",
+      "lastMessageTime": 1704387600000
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg1",
+      "chatId": "user1_user2",
+      "senderId": "user1",
+      "receiverId": "user2",
+      "content": "Salut ! Comment ça va ?",
+      "timestamp": 1704387600000,
+      "status": "sent"
+    },
+    {
+      "id": "msg2",
+      "chatId": "user1_user2",
+      "senderId": "user2",
+      "receiverId": "user1",
+      "content": "Salut ! Ça va bien et toi ?",
+      "timestamp": 1704387660000,
+      "status": "sent"
+    },
+    {
+      "id": "bd23",
+      "chatId": "chat_user1",
+      "senderId": "currentUser",
+      "receiverId": "user1",
+      "content": "jkl",
+      "timestamp": 1749574844180,
+      "status": "sent"
+    },
+    {
+      "id": "cad4",
+      "chatId": "chat_dded",
+      "senderId": "currentUser",
+      "receiverId": "dded",
+      "content": "hjkl",
+      "timestamp": 1749624868315,
+      "status": "sent"
+    },
+    {
+      "id": "2ff7",
+      "chatId": "chat_dded",
+      "senderId": "currentUser",
+      "receiverId": "dded",
+      "content": "j",
+      "timestamp": 1749625544573,
+      "status": "sent"
+    },
+    {
+      "id": "0c67",
+      "chatId": "chat_dded",
+      "senderId": "currentUser",
+      "receiverId": "dded",
+      "content": "uii",
+      "timestamp": 1749625550822,
+      "status": "sent"
+    },
+    {
+      "id": "4d3c",
+      "chatId": "chat_user2",
+      "senderId": "currentUser",
+      "receiverId": "user2",
+      "content": "ujij",
+      "timestamp": 1749625560767,
+      "status": "sent"
+    }
+  ]
+}
