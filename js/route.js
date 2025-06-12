@@ -1,11 +1,15 @@
 import { renderLogin } from "./login";
 import { renderRegister } from "./register";
 import { renderHome } from "./home";
+import { renderNewDiscussion } from "./new-discussion"; 
+import { renderGroupe } from "./groupe"; // Importez la fonction renderGroupe
 
 const route = {
     "/login": renderLogin,
     "/register": renderRegister,
     "/home": renderHome,
+    "/newDiscussion": renderNewDiscussion,
+    "/groupe": renderGroupe, // Ajoutez la route pour la page groupe.js
 };
 
 export function router(path = "/login") {
@@ -13,10 +17,10 @@ export function router(path = "/login") {
     const app = document.querySelector("#app");
 
     if (!views) {
-        app.innerHTML = "<h2>Page non trouvée</h2>"; // ✅ Gestion des erreurs
+        console.error("Route introuvable :", path);
         return;
     }
 
-    app.innerHTML = ""; // ✅ Nettoyer avant d'ajouter une nouvelle vue
-    app.appendChild(views()); // ✅ Afficher la vue demandée
+    app.innerHTML = "";
+    app.appendChild(views());
 }
