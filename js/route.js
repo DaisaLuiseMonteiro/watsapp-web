@@ -1,11 +1,11 @@
 import { renderLogin } from "./login";
 import { renderRegister } from "./register";
-import { renderHome } from "./home"; // ✅ Ajout de l'importation
+import { renderHome } from "./home";
 
 const route = {
     "/login": renderLogin,
     "/register": renderRegister,
-    "/home": renderHome // ✅ Ajout de la route pour la page principale
+    "/home": renderHome,
 };
 
 export function router(path = "/login") {

@@ -49,7 +49,6 @@ function showMessage(message, type = "error") {
         setTimeout(() => popup.classList.add("hidden"), 500);
     }, 3000);
 }
-
 async function handleLogin(event) {
     event.preventDefault();
     let phoneNumber = document.getElementById("phone").value.trim();
