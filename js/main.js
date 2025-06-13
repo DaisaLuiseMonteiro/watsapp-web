@@ -1,5 +1,5 @@
 import { router } from "./route";
 
-document.addEventListener("DOMContentLoaded", () => {
-    router("/login"); 
-});
+document.addEventListener("DOMContentLoaded",()=>{
+    router("/login")
+})

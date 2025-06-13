@@ -1,5 +1,5 @@
 import { router } from "./route";
-import { loadMessages } from "./home"; // Importez la fonction de chargement des messages depuis home.js
+import { loadMessages } from "./home"; 
 
 export function renderNewDiscussion() {
     const newDiscussionElement = document.createElement("div");
@@ -31,20 +31,19 @@ export function renderNewDiscussion() {
 
     loadContacts();
 
-    // Gestion de la recherche
     const searchInput = newDiscussionElement.querySelector("#searchInput");
     searchInput.addEventListener("input", () => {
         const query = searchInput.value.trim().toLowerCase();
         if (query.length >= 2) {
             filterContacts(query);
         } else {
-            loadContacts(); // Recharge tous les contacts si la recherche est vide ou trop courte
+            loadContacts(); 
         }
     });
 
-    // Gestion du retour à la page home.js
+  
     newDiscussionElement.querySelector("#backToHomeBtn").addEventListener("click", () => {
-        router("/home"); // Retourne à la page home.js
+        router("/home"); 
     });
 
     newDiscussionElement.querySelector("#newGroupBtn").addEventListener("click", () => {
@@ -58,55 +57,26 @@ export function renderNewDiscussion() {
     return newDiscussionElement;
 }
 
-// Chargement des contacts
 async function loadContacts() {
     try {
-        const response = await fetch("https://json-server-vpom.onrender.com/users");
-        const users = await response.json();
+        const response = await fetch("https://json-server-vpom.onrender.com/contacts");
+        const contacts = await response.json();
         const contactsList = document.getElementById("contactsList");
 
-        contactsList.innerHTML = "";
-        users.forEach(user => {
+        contactsList.innerHTML = ""; // Vider la liste des contacts
+
+        contacts.forEach(contact => {
             const li = document.createElement("li");
             li.className = "flex items-center space-x-3 p-2 hover:bg-gray-100 rounded-lg cursor-pointer";
             li.innerHTML = `
-                <img src="${user.avatar || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full">
+                <img src="${contact.avatar || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full">
                 <div class="flex-1">
-                    <p class="font-semibold text-gray-900">${user.name}</p>
-                    <p class="text-sm text-gray-500">${user.status || 'Salut ! J\'utilise WhatsApp.'}</p>
+                    <p class="font-semibold text-gray-900">${contact.name}</p>
+                    <p class="text-sm text-gray-500">${contact.status || 'Aucun statut disponible'}</p>
                 </div>
             `;
 
-            // Ajoutez un gestionnaire d'événements pour afficher les messages dans la partie 3
-            li.addEventListener("click", () => {
-                const header = document.getElementById("chatHeader");
-                const messagesDiv = document.getElementById("messages");
-                const messageInputArea = document.getElementById("messageInputArea");
-
-                // Affichez la partie 3
-                header.classList.remove("hidden");
-                messageInputArea.classList.remove("hidden");
-
-                // Mettez à jour l'en-tête de la partie 3 avec les informations du contact
-                header.innerHTML = `
-                    <div class="flex items-center justify-between w-full">
-                        <div class="flex items-center space-x-3">
-                            <img src="${user.avatar || 'https://via.placeholder.com/50'}" class="w-10 h-10 rounded-full object-cover">
-                            <div>
-                                <p class="font-semibold text-gray-900">${user.name}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center space-x-4 text-gray-600">
-                            <i class="fas fa-search cursor-pointer"></i>
-                            <i class="fas fa-ellipsis-v cursor-pointer"></i>
-                        </div>
-                    </div>
-                `;
-
-                // Chargez les messages du contact dans la partie 3
-                messagesDiv.innerHTML = ""; // Videz les messages existants
-                loadMessages(user.id); // Chargez les messages du contact
-            });
+            li.addEventListener("click", () => openChat(contact)); // Ouvrir la discussion avec ce contact
 
             contactsList.appendChild(li);
         });
@@ -115,30 +85,123 @@ async function loadContacts() {
     }
 }
 
-// Filtrer les contacts en fonction de la recherche
 async function filterContacts(query) {
     try {
-        const response = await fetch("https://json-server-vpom.onrender.com/users");
-        const users = await response.json();
-        const filteredUsers = users.filter(user =>
-            user.name.toLowerCase().includes(query) || user.phone?.toLowerCase().includes(query)
+        const response = await fetch("https://json-server-vpom.onrender.com/contacts");
+        const contacts = await response.json();
+        const filteredContacts = contacts.filter(contact =>
+            contact.name.toLowerCase().includes(query) || contact.phone?.toLowerCase().includes(query)
         );
 
         const contactsList = document.getElementById("contactsList");
-        contactsList.innerHTML = "";
-        filteredUsers.forEach(user => {
+        contactsList.innerHTML = ""; // Vider la liste des contacts
+
+        filteredContacts.forEach(contact => {
             const li = document.createElement("li");
             li.className = "flex items-center space-x-3 p-2 hover:bg-gray-100 rounded-lg cursor-pointer";
             li.innerHTML = `
-                <img src="${user.avatar || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full">
+                <img src="${contact.avatar || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full">
                 <div class="flex-1">
-                    <p class="font-semibold text-gray-900">${user.name}</p>
-                    <p class="text-sm text-gray-500">${user.status || 'Salut ! J\'utilise WhatsApp.'}</p>
+                    <p class="font-semibold text-gray-900">${contact.name}</p>
+                    <p class="text-sm text-gray-500">${contact.status || 'Aucun statut disponible'}</p>
                 </div>
             `;
+
+            li.addEventListener("click", () => openChat(contact)); // Ouvrir la discussion avec ce contact
+
             contactsList.appendChild(li);
         });
     } catch (error) {
         console.error("Erreur filtrage contacts :", error);
     }
+}
+
+async function openChat(contact) {
+    const messagesResponse = await fetch("https://json-server-vpom.onrender.com/messages");
+    const messages = await messagesResponse.json();
+
+    const partie3 = document.getElementById("partie3");
+    partie3.innerHTML = `
+        <!-- En-tête du chat -->
+        <div id="chatHeader" class="bg-white p-4 border-b flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <img src="${contact.avatar || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full object-cover">
+                <div>
+                    <p id="chatName" class="font-semibold text-gray-900">${contact.name}</p>
+                    <p class="text-sm text-gray-500">${contact.status || 'Aucun statut disponible'}</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4 text-gray-600 ml-auto">
+                <i class="fas fa-search cursor-pointer"></i>
+                <i class="fas fa-ellipsis-v cursor-pointer"></i>
+            </div>
+        </div>
+
+        <!-- Zone des messages -->
+        <div id="messages" class="flex-1 overflow-y-auto px-6 py-4 space-y-3 bg-gray-50"
+            style="scrollbar-width: thin; overflow-x: hidden;">
+        </div>
+
+        <!-- Zone de saisie du message -->
+        <div id="messageInputArea" class="p-3 bg-white border-t border-gray-200 flex items-center space-x-2">
+            <input id="messageInput" type="text" placeholder="Écrire un message"
+                class="flex-1 px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
+            <button id="sendMessage"
+                class="bg-green-500 text-white px-3 py-2 rounded-full hover:bg-green-600 transition">
+                <i class="fas fa-paper-plane text-sm"></i>
+            </button>
+        </div>
+    `;
+
+    // Filtrer les messages pour ce contact
+    const contactMessages = messages.filter(
+        msg => msg.senderId === contact.id || msg.receiverId === contact.id
+    );
+
+    const messagesDiv = document.getElementById("messages");
+
+    // Afficher les messages
+    contactMessages
+        .sort((a, b) => a.timestamp - b.timestamp) // Trier par date
+        .forEach(msg => {
+            const isSentByCurrentUser = msg.senderId === "currentUser"; // Remplacez par l'ID de l'utilisateur connecté
+            const messageDiv = document.createElement("div");
+            messageDiv.className = `flex ${isSentByCurrentUser ? 'justify-end' : 'justify-start'} mb-3`;
+            messageDiv.innerHTML = `
+                <div class="max-w-xs px-4 py-2 rounded-lg shadow-sm ${
+                    isSentByCurrentUser
+                        ? 'bg-green-500 text-white'
+                        : 'bg-white border border-gray-200 text-gray-800'
+                }">
+                    <p>${msg.content}</p>
+                    <div class="text-right text-xs mt-1 opacity-70">${new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                </div>
+            `;
+            messagesDiv.appendChild(messageDiv);
+        });
+
+    // Ajouter un événement pour envoyer un message
+    const sendButton = document.getElementById("sendMessage");
+    const input = document.getElementById("messageInput");
+    sendButton.addEventListener("click", async () => {
+        const content = input.value.trim();
+        if (!content) return;
+
+        // Envoyer le message à l'API
+        await fetch("https://json-server-vpom.onrender.com/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                senderId: "currentUser", // Remplacez par l'ID de l'utilisateur connecté
+                receiverId: contact.id,
+                content,
+                timestamp: Date.now(),
+                status: "sent"
+            })
+        });
+
+        // Réinitialiser le champ de saisie et recharger les messages
+        input.value = "";
+        openChat(contact);
+    });
 }

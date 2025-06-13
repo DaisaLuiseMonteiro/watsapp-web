@@ -5,7 +5,6 @@ export function renderHome() {
     const element = document.createElement("div");
     element.innerHTML = `
         <div id="message" class="flex w-screen h-screen overflow-hidden">
-            <!-- PARTIE 1 -->
             <div id="partie1" class="bg-gray-50 h-full w-[5%] flex flex-col justify-between items-center py-4">
                 <div class="flex flex-col items-center space-y-6">
                     <button title="Discussions" class="text-gray-600 hover:text-green-500 text-xl"><i class="fas fa-comments"></i></button>
@@ -35,7 +34,7 @@ export function renderHome() {
                             </button>
                         </div>
                     </div>
-                    <input type="text" placeholder="Rechercher un contact"
+                    <input id="searchInput" type="text" placeholder="Rechercher un contact"
                         class="mt-1 w-full px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 text-sm">
                 </div>
                 <!-- Boutons de filtrage -->
@@ -85,13 +84,20 @@ export function renderHome() {
         </div>
     `;
 
+    // Charger les contacts au démarrage
     loadContacts();
 
-    // Remplacer uniquement la partie 2 par la page "new-discussion"
+    // Ajouter un gestionnaire d'événements pour le filtrage
+    const searchInput = element.querySelector("#searchInput");
+    searchInput.addEventListener("input", (event) => {
+        const query = event.target.value.trim().toLowerCase();
+        loadContacts(query); // Charger les contacts en fonction de la recherche
+    });
+
     element.querySelector("#newDiscussionBtn").addEventListener("click", () => {
         const partie2 = document.getElementById("partie2");
-        partie2.innerHTML = ""; // Vider la partie 2
-        partie2.appendChild(renderNewDiscussion()); // Remplacer par la nouvelle discussion
+        partie2.innerHTML = ""; 
+        partie2.appendChild(renderNewDiscussion()); 
     });
 
     element.addEventListener("input", () => {
@@ -106,28 +112,35 @@ export function renderHome() {
     return element;
 }
 
-async function loadContacts() {
+async function loadContacts(query = "") {
     try {
-        const response = await fetch("https://json-server-vpom.onrender.com/users");
-        const users = await response.json();
+        const contactsResponse = await fetch("https://json-server-vpom.onrender.com/contacts");
         const messagesResponse = await fetch("https://json-server-vpom.onrender.com/messages");
+        const contacts = await contactsResponse.json();
         const messages = await messagesResponse.json();
-        const contactsList = document.getElementById("contactsList");
-        contactsList.innerHTML = "";
 
-        const sortedUsers = users
-            .map(user => {
-                const msgs = messages.filter(msg => msg.senderId === user.id || msg.receiverId === user.id);
+        const contactsList = document.getElementById("contactsList");
+        contactsList.innerHTML = ""; // Vider la liste des contacts
+
+        // Filtrer les contacts en fonction de la recherche
+        const filteredContacts = contacts.filter(contact =>
+            contact.name.toLowerCase().includes(query) || contact.phone.includes(query)
+        );
+
+        // Trier et afficher les contacts
+        const sortedContacts = filteredContacts
+            .map(contact => {
+                const msgs = messages.filter(msg => msg.senderId === contact.id || msg.receiverId === contact.id);
                 const lastMessage = msgs[msgs.length - 1];
                 return {
-                    user,
+                    contact,
                     lastMessage,
                     lastTimestamp: lastMessage ? lastMessage.timestamp : 0
                 };
             })
             .sort((a, b) => b.lastTimestamp - a.lastTimestamp);
 
-        sortedUsers.forEach(({ user, lastMessage }) => {
+        sortedContacts.forEach(({ contact, lastMessage }) => {
             const lastMessageText = lastMessage ? lastMessage.content : "Aucun message";
             const lastTime = lastMessage ? new Date(lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
 
@@ -135,17 +148,17 @@ async function loadContacts() {
             li.className = "flex items-center justify-between space-x-2 p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors";
 
             li.innerHTML = `
-                <img src="${user.avatar || 'https://via.placeholder.com/50'}" class="w-10 h-10 rounded-full object-cover">
+                <img src="${contact.avatar || 'https://via.placeholder.com/50'}" class="w-10 h-10 rounded-full object-cover">
                 <div class="flex-1 min-w-0 ml-3">
                     <div class="flex justify-between items-center">
-                        <p class="font-semibold text-gray-900 truncate">${user.name}</p>
+                        <p class="font-semibold text-gray-900 truncate">${contact.name}</p>
                         <span class="text-xs text-gray-400">${lastTime}</span>
                     </div>
                     <p class="text-sm text-gray-500 truncate">${lastMessageText}</p>
                 </div>
             `;
 
-            li.addEventListener("click", () => openChat(user));
+            li.addEventListener("click", () => openChat(contact));
             contactsList.appendChild(li);
         });
     } catch (error) {
@@ -191,7 +204,7 @@ export async function loadMessages(userId) {
         const allMessages = await response.json();
         const messagesDiv = document.getElementById("messages");
 
-        messagesDiv.innerHTML = "";
+        messagesDiv.innerHTML = ""; 
 
         allMessages
             .filter(msg => msg.senderId === userId || msg.receiverId === userId)
@@ -211,7 +224,7 @@ export async function loadMessages(userId) {
 
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     } catch (error) {
-        console.error("Erreur chargement messages :", error);
+        console.error("Erreur chargement messages :", error); 
     }
 }
 
@@ -219,17 +232,42 @@ async function sendMessage(receiverId) {
     const input = document.getElementById("messageInput");
     const sendButton = document.getElementById("sendMessage");
     const content = input.value.trim();
-    if (!content) return;
 
-    await fetch("https://json-server-vpom.onrender.com/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ senderId: "currentUser", receiverId, content, timestamp: Date.now(), status: "sent" })
-    });
+    if (!content) return; 
 
-    input.value = "";
-    sendButton.innerHTML = `<i class="fas fa-microphone text-sm"></i>`;
-    loadMessages(receiverId);
-    loadContacts();
+    try {
+        await fetch("https://json-server-vpom.onrender.com/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                senderId: "currentUser", 
+                receiverId,
+                content,
+                timestamp: Date.now(),
+                status: "sent"
+            })
+        });
+
+        input.value = "";
+        sendButton.innerHTML = `<i class="fas fa-microphone text-sm"></i>`;
+
+        loadMessages(receiverId);
+    } catch (error) {
+        console.error("Erreur lors de l'envoi du message :", error);
+    }
+}
+
+async function getCurrentUser() {
+    try {
+        const response = await fetch("https://json-server-vpom.onrender.com/contacts");
+        const contacts = await response.json();
+
+        // Remplacez "currentUser" par l'ID ou le numéro de téléphone de l'utilisateur connecté
+        const currentUser = contacts.find(contact => contact.id === "currentUser");
+        return currentUser;
+    } catch (error) {
+        console.error("Erreur lors de la récupération de l'utilisateur connecté :", error);
+        return null;
+    }
 }
 
