@@ -58,12 +58,10 @@ async function handleLogin(event) {
         return;
     }
     try {
-        // Vérification du numéro depuis l'API contacts
         const response = await fetch(`https://json-server-vpom.onrender.com/contacts?phone=${phoneNumber}`);
         const contacts = await response.json();
 
         if (contacts.length > 0) {
-            // Si le numéro existe, passe à la vérification du code
             document.getElementById("formTitle").textContent = "Vérification du code";
             document.getElementById("formDescription").textContent = "Entrez le code de vérification reçu.";
             document.getElementById("loginForm").innerHTML = `
@@ -73,7 +71,6 @@ async function handleLogin(event) {
             `;
             document.getElementById("loginForm").addEventListener("submit", handleVerify);
         } else {
-            // Si le numéro n'existe pas, affiche un message d'erreur
             showMessage("Numéro introuvable. Veuillez vous inscrire.", "error");
         }
     } catch (error) {

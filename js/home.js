@@ -4,7 +4,7 @@ import { renderNewDiscussion } from "./new-discussion";
 export const router = {
     navigate(path) {
         const app = document.getElementById("app");
-        app.innerHTML = ""; // Vider le contenu précédent
+        app.innerHTML = ""; 
 
         if (path === "/login") {
             app.appendChild(renderLogin());
