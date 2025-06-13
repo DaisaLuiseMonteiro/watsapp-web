@@ -73,9 +73,13 @@ export function renderHome() {
                         <p id="chatName" class="font-semibold text-gray-900"></p>
                     </div>
                 </div>
-                <div class="flex items-center space-x-4 text-gray-600 ml-auto">
-                    <i class="fas fa-search cursor-pointer"></i>
-                    <i class="fas fa-ellipsis-v cursor-pointer"></i>
+                <div class="flex items-center space-x-4 text-gray-600 ml-auto relative">
+                    <i id="optionsButton" class="fas fa-ellipsis-v cursor-pointer"></i>
+                    <!-- Menu contextuel -->
+                    <div id="optionsMenu" class="absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg hidden">
+                        <button id="archiveButton" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Archiver</button>
+                        <button id="deleteButton" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Supprimer</button>
+                    </div>
                 </div>
             </div>
 
@@ -201,9 +205,13 @@ function openChat(user) {
                     <p class="font-semibold text-gray-900">${user.name}</p>
                 </div>
             </div>
-            <div class="flex items-center space-x-4 text-gray-600">
-                <i class="fas fa-search cursor-pointer"></i>
-                <i class="fas fa-ellipsis-v cursor-pointer"></i>
+            <div class="flex items-center space-x-4 text-gray-600 ml-auto relative">
+                <i id="optionsButton" class="fas fa-ellipsis-v cursor-pointer"></i>
+                <!-- Menu contextuel -->
+                <div id="optionsMenu" class="absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg hidden">
+                    <button id="archiveButton" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Archiver</button>
+                    <button id="deleteButton" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Supprimer</button>
+                </div>
             </div>
         </div>
     `;
@@ -214,6 +222,32 @@ function openChat(user) {
     loadMessages(user.id);
 
     sendButton.onclick = () => sendMessage(user.id);
+
+    // Gestionnaire pour afficher/masquer le menu contextuel
+    const optionsButton = header.querySelector("#optionsButton");
+    const optionsMenu = header.querySelector("#optionsMenu");
+
+    optionsButton.addEventListener("click", () => {
+        optionsMenu.classList.toggle("hidden");
+    });
+
+    // Gestionnaire pour archiver
+    const archiveButton = header.querySelector("#archiveButton");
+    archiveButton.addEventListener("click", () => {
+        alert("Discussion archivée !");
+        optionsMenu.classList.add("hidden");
+    });
+
+    // Gestionnaire pour supprimer
+    const deleteButton = header.querySelector("#deleteButton");
+    deleteButton.addEventListener("click", async () => {
+        if (confirm("Voulez-vous vraiment supprimer cette discussion ?")) {
+            await deleteMessages(user.id);
+            alert("Discussion supprimée !");
+            optionsMenu.classList.add("hidden");
+            messagesDiv.innerHTML = ""; // Vider les messages
+        }
+    });
 }
 
 export async function loadMessages(userId) {
@@ -286,6 +320,50 @@ async function getCurrentUser() {
     } catch (error) {
         console.error("Erreur lors de la récupération de l'utilisateur connecté :", error);
         return null;
+    }
+}
+
+async function deleteMessages(userId) {
+    try {
+        const response = await fetch("https://json-server-vpom.onrender.com/messages");
+        const allMessages = await response.json();
+
+        // Filtrer les messages à supprimer
+        const messagesToDelete = allMessages.filter(
+            msg => msg.senderId === userId || msg.receiverId === userId
+        );
+
+        // Supprimer chaque message
+        for (const message of messagesToDelete) {
+            await fetch(`https://json-server-vpom.onrender.com/messages/${message.id}`, {
+                method: "DELETE"
+            });
+        }
+    } catch (error) {
+        console.error("Erreur lors de la suppression des messages :", error);
+    }
+}
+
+async function archiveChat(userId) {
+    try {
+        const response = await fetch("https://json-server-vpom.onrender.com/messages");
+        const allMessages = await response.json();
+
+        // Filtrer les messages à archiver
+        const messagesToArchive = allMessages.filter(
+            msg => msg.senderId === userId || msg.receiverId === userId
+        );
+
+        // Mettre à jour chaque message avec un champ "archived"
+        for (const message of messagesToArchive) {
+            await fetch(`https://json-server-vpom.onrender.com/messages/${message.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ archived: true })
+            });
+        }
+    } catch (error) {
+        console.error("Erreur lors de l'archivage des messages :", error);
     }
 }
 
