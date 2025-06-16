@@ -1,69 +1,80 @@
 import { renderNewDiscussion } from "./new-discussion";
 
 export function renderNewGroupe() {
-    const partie2 = document.getElementById("partie2");
-    if (!partie2) {
-        console.error("Élément 'partie2' introuvable.");
-        return;
-    }
+    const container = document.createElement("div");
+    container.id = "newGroupForm";
+    container.className = "bg-white border-r border-gray-200 flex flex-col h-full w-full p-4";
 
-    partie2.innerHTML = `
+    container.innerHTML = `
         <!-- FORMULAIRE DE NOUVEAU GROUPE -->
-        <div id="newGroupForm" class="bg-white border-r border-gray-200 flex flex-col h-full w-full p-4">
-            <!-- En-tête -->
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center space-x-3">
-                    <button id="backToNewDiscussionBtn" class="text-gray-600 hover:text-green-500 text-lg">
-                        <i class="fas fa-arrow-left"></i>
-                    </button>
-                    <h2 class="text-xl font-semibold text-gray-800">Nouveau groupe</h2>
-                </div>
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center space-x-3">
+                <button id="backToNewDiscussionBtn" class="text-gray-600 hover:text-green-500 text-lg">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2 class="text-xl font-semibold text-gray-800">Nouveau groupe</h2>
+            </div>
+        </div>
+
+        <form id="groupForm" class="flex flex-col space-y-4">
+            <div>
+                <label for="groupName" class="block text-sm text-gray-700 mb-1">Nom du groupe <span class="text-red-500">*</span></label>
+                <input type="text" id="groupName" name="groupName" required
+                    class="w-full px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 text-sm">
             </div>
 
-            <form id="groupForm" class="flex flex-col space-y-4">
-                <div>
-                    <label for="groupName" class="block text-sm text-gray-700 mb-1">Nom du groupe</label>
-                    <input type="text" id="groupName" name="groupName" required
-                        class="w-full px-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 text-sm">
-                </div>
+            <div>
+                <label for="groupDesc" class="block text-sm text-gray-700 mb-1">Description <span class="text-red-500">*</span></label>
+                <textarea id="groupDesc" name="groupDesc" rows="2" required
+                    class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 text-sm"></textarea>
+            </div>
 
-                <div>
-                    <label for="groupDesc" class="block text-sm text-gray-700 mb-1">Description</label>
-                    <textarea id="groupDesc" name="groupDesc" rows="2"
-                        class="w-full px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 text-sm"></textarea>
-                </div>
+            <div>
+                <label class="block text-sm text-gray-700 mb-2">Membres du groupe <span class="text-red-500">*</span></label>
+                <p class="text-sm text-gray-500 mb-2">Liste des contacts :</p>
+                <ul id="contactsList" class="max-h-48 overflow-y-auto border p-2 rounded bg-gray-50 text-sm space-y-1">
+                    <!-- Les contacts seront affichés ici -->
+                </ul>
+            </div>
 
-                <div>
-                    <label class="block text-sm text-gray-700 mb-2">Membres du groupe</label>
-                    <ul id="contactsList" class="max-h-48 overflow-y-auto border p-2 rounded bg-gray-50 text-sm space-y-1">
-                        <li>Chargement des contacts...</li>
-                    </ul>
-                </div>
+            <div id="messageContainer" class="text-sm text-red-500 mt-2"></div>
 
-                <div id="messageContainer" class="text-sm text-red-500 mt-2"></div>
-
-                <button type="submit"
-                    class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 rounded-full transition duration-200">
-                    Créer le groupe
-                </button>
-            </form>
-        </div>
+            <button type="submit"
+                class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 rounded-full transition duration-200">
+                Créer le groupe
+            </button>
+        </form>
     `;
 
-    partie2.querySelector("#backToNewDiscussionBtn").addEventListener("click", () => {
-        renderNewDiscussion();
+    container.querySelector("#backToNewDiscussionBtn").addEventListener("click", () => {
+        const partie2 = document.getElementById("partie2");
+        partie2.innerHTML = "";
+        partie2.appendChild(renderNewDiscussion());
     });
 
-    partie2.querySelector("#groupForm").addEventListener("submit", handleNewGroup);
+    container.querySelector("#groupForm").addEventListener("submit", handleNewGroup);
 
-    loadContactsList(); // Charger les contacts à afficher
+    // Charger la liste des contacts
+    loadContactsList();
+
+    return container;
 }
 
 async function loadContactsList() {
     const listEl = document.getElementById("contactsList");
+    if (!listEl) {
+        console.error("Élément DOM 'contactsList' introuvable.");
+        return;
+    }
+
     try {
         const response = await fetch("https://json-server-vpom.onrender.com/contacts");
+        if (!response.ok) {
+            throw new Error(`Erreur HTTP: ${response.status}`);
+        }
+
         const contacts = await response.json();
+        console.log("Contacts récupérés :", contacts);
 
         const currentUser = JSON.parse(localStorage.getItem("currentUser"));
         if (!currentUser) {
@@ -71,24 +82,21 @@ async function loadContactsList() {
             return;
         }
 
-        listEl.innerHTML = "";
+        listEl.innerHTML = ""; // Réinitialise la liste des contacts
+
         contacts.forEach(contact => {
-            const li = document.createElement("li");
-            li.className = "flex items-center space-x-2";
+            if (!contact.name || !contact.phone) {
+                console.warn("Contact invalide :", contact);
+                return;
+            }
 
-            const checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.id = `contact-${contact.id}`;
-            checkbox.value = contact.phone;
-            checkbox.className = "accent-green-500";
-
-            const label = document.createElement("label");
-            label.htmlFor = checkbox.id;
-            label.textContent = contact.name;
-
-            li.appendChild(checkbox);
-            li.appendChild(label);
-            listEl.appendChild(li);
+            // Ajouter chaque contact directement dans la liste
+            listEl.innerHTML += `
+                <li class="flex items-center space-x-2">
+                    <input type="checkbox" id="contact-${contact.id}" value="${contact.phone}" class="accent-green-500">
+                    <label for="contact-${contact.id}" class="text-gray-700">${contact.name}</label>
+                </li>
+            `;
         });
 
         // Ajouter l'utilisateur connecté comme membre par défaut
@@ -98,8 +106,8 @@ async function loadContactsList() {
             currentUserCheckbox.disabled = true;
         }
     } catch (error) {
+        console.error("Erreur lors de la récupération des contacts :", error);
         listEl.innerHTML = `<li class="text-red-500">Erreur lors du chargement des contacts.</li>`;
-        console.error("Erreur de chargement des contacts :", error);
     }
 }
 
@@ -120,6 +128,12 @@ async function handleNewGroup(event) {
         return;
     }
 
+    // Validation : Vérifiez que la description est renseignée
+    if (!description) {
+        messageContainer.textContent = "Veuillez saisir une description pour le groupe.";
+        return;
+    }
+
     // Validation : Vérifiez qu'il y a au moins 2 membres
     if (selectedPhones.length < 2) {
         messageContainer.textContent = "Un groupe doit avoir au moins 2 membres.";
@@ -127,7 +141,6 @@ async function handleNewGroup(event) {
     }
 
     try {
-        // Vérifiez si un groupe avec le même nom existe déjà
         const response = await fetch("https://json-server-vpom.onrender.com/groups");
         const groups = await response.json();
 
@@ -137,7 +150,6 @@ async function handleNewGroup(event) {
             return;
         }
 
-        // Ajoutez l'utilisateur connecté comme membre par défaut
         const currentUser = JSON.parse(localStorage.getItem("currentUser"));
         if (!currentUser) {
             console.error("Utilisateur connecté introuvable.");
@@ -147,7 +159,6 @@ async function handleNewGroup(event) {
             selectedPhones.push(currentUser.phone);
         }
 
-        // Génération de l'avatar du groupe
         const initials = name
             .split(" ")
             .map(word => word.charAt(0).toUpperCase())
@@ -155,7 +166,6 @@ async function handleNewGroup(event) {
             .substring(0, 2);
         const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=25d366&color=fff`;
 
-        // Création du nouvel objet groupe
         const newGroup = {
             id: `group${groups.length + 1}`,
             name,
@@ -166,7 +176,6 @@ async function handleNewGroup(event) {
             lastMessageTime: Date.now(),
         };
 
-        // Envoi du groupe au serveur
         const saveResponse = await fetch("https://json-server-vpom.onrender.com/groups", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -177,8 +186,9 @@ async function handleNewGroup(event) {
             throw new Error("Erreur lors de l'enregistrement du groupe.");
         }
 
-        // Redirection vers la page "Nouvelle discussion"
-        renderNewDiscussion();
+        const partie2 = document.getElementById("partie2");
+        partie2.innerHTML = "";
+        partie2.appendChild(renderNewDiscussion());
     } catch (error) {
         console.error("Erreur lors de l'enregistrement du groupe :", error);
         messageContainer.textContent = "Une erreur est survenue. Veuillez réessayer.";

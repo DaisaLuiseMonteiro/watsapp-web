@@ -11,17 +11,25 @@ const route = {
     "/home": renderHome,
     "/newDiscussion": renderNewDiscussion,
     "/new-contact": renderNewContact,
-    "/new-groupe": renderNewGroupe, // Route pour Nouveau groupe
+    "/new-groupe": renderNewGroupe, 
 };
 
 export function router(path = "/login") {
     const views = route[path];
-    const app = document.querySelector("#app");
+    const partie2 = document.getElementById("partie2");
+
     if (!views) {
         console.error("Route introuvable :", path);
         return;
     }
 
-    app.innerHTML = "";
-    app.appendChild(views());
+    if (path === "/new-groupe" && partie2) {
+        // Mettre à jour uniquement la partie 2 pour "Nouveau groupe"
+        partie2.innerHTML = "";
+        partie2.appendChild(views());
+    } else {
+        const app = document.querySelector("#app");
+        app.innerHTML = "";
+        app.appendChild(views());
+    }
 }

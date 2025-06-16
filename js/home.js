@@ -87,10 +87,10 @@ export function renderHome() {
             </div>
             <!-- Boutons de filtrage -->
             <div class="px-4 py-2 border-b border-gray-200 flex space-x-2">
-                <button class="text-sm text-gray-700 px-3 py-1 rounded-full bg-gray-100 hover:bg-green-100">Toutes</button>
-                <button class="text-sm text-gray-700 px-3 py-1 rounded-full bg-gray-100 hover:bg-green-100">Non lues</button>
-                <button class="text-sm text-gray-700 px-3 py-1 rounded-full bg-gray-100 hover:bg-green-100">Favoris</button>
-                <button class="text-sm text-gray-700 px-3 py-1 rounded-full bg-gray-100 hover:bg-green-100">Groupes</button>
+                <button id="allContactsBtn" class="text-sm text-gray-700 px-3 py-1 rounded-full bg-gray-100 hover:bg-green-100">Toutes</button>
+                <button id="unreadContactsBtn" class="text-sm text-gray-700 px-3 py-1 rounded-full bg-gray-100 hover:bg-green-100">Non lues</button>
+                <button id="favoriteContactsBtn" class="text-sm text-gray-700 px-3 py-1 rounded-full bg-gray-100 hover:bg-green-100">Favoris</button>
+                <button id="groupsBtn" class="text-sm text-gray-700 px-3 py-1 rounded-full bg-gray-100 hover:bg-green-100">Groupes</button>
             </div>
 
             <!-- Liste des contacts -->
@@ -157,6 +157,10 @@ export function renderHome() {
         currentUser = null;
         router.navigate("/login");
     
+    });
+
+    element.querySelector("#groupsBtn").addEventListener("click", () => {
+        loadGroups();
     });
 
     element.addEventListener("input", () => {
@@ -609,5 +613,85 @@ async function handleLogin(event) {
     } catch (error) {
         console.error("Erreur de connexion :", error);
         showMessage("Erreur serveur.", "error");
+    }
+}
+
+async function loadGroups() {
+    try {
+        const response = await fetch("https://json-server-vpom.onrender.com/groups");
+        if (!response.ok) {
+            throw new Error(`Erreur HTTP: ${response.status}`);
+        }
+
+        const groups = await response.json();
+        const contactsList = document.getElementById("contactsList");
+        if (!contactsList) {
+            console.error("Élément DOM 'contactsList' introuvable.");
+            return;
+        }
+
+        contactsList.innerHTML = ""; // Réinitialise la liste
+
+        groups.forEach(group => {
+            const li = document.createElement("li");
+            li.className = "flex items-center justify-between space-x-2 p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors";
+
+            li.innerHTML = `
+                <img src="${group.avatar || 'https://via.placeholder.com/50'}" class="w-10 h-10 rounded-full object-cover">
+                <div class="flex-1 min-w-0 ml-3">
+                    <div class="flex justify-between items-center">
+                        <p class="font-semibold text-gray-900 truncate">${group.name}</p>
+                        <span class="text-xs text-gray-400">${new Date(group.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <p class="text-sm text-gray-500 truncate">${group.lastMessage || "Aucun message"}</p>
+                </div>
+            `;
+
+            li.addEventListener("click", () => openGroupChat(group));
+            contactsList.appendChild(li);
+        });
+    } catch (error) {
+        console.error("Erreur lors du chargement des groupes :", error);
+    }
+}
+
+async function sendGroupMessage(groupId) {
+    const input = document.getElementById("messageInput");
+    const content = input.value.trim();
+
+    if (!content) return;
+
+    try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+            console.error("Utilisateur connecté introuvable.");
+            return;
+        }
+
+        const messageData = {
+            id: `msg${Date.now()}`,
+            senderId: currentUser.id,
+            receiverId: groupId,
+            content,
+            timestamp: Date.now(),
+            status: "sent"
+        };
+
+        const response = await fetch("https://json-server-vpom.onrender.com/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(messageData)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erreur HTTP: ${response.status}`);
+        }
+
+        input.value = "";
+
+        // Mettre à jour les messages du groupe
+        await openGroupChat({ id: groupId });
+    } catch (error) {
+        console.error("Erreur lors de l'envoi du message :", error);
     }
 }
