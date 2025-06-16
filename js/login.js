@@ -53,15 +53,27 @@ async function handleLogin(event) {
     event.preventDefault();
     let phoneNumber = document.getElementById("phone").value.trim();
 
+    // Vérifier que le numéro est valide
     if (!/^\+?[0-9\s]+$/.test(phoneNumber)) {
         showMessage("Le numéro ne doit contenir que des chiffres ou commencer par '+'.", "error");
         return;
     }
+
     try {
-        const response = await fetch(`https://json-server-vpom.onrender.com/contacts?phone=${phoneNumber}`);
+        // Requête pour vérifier si le numéro existe dans les contacts
+        const response = await fetch(`https://json-server-vpom.onrender.com/contacts?phone=${encodeURIComponent(phoneNumber)}`);
         const contacts = await response.json();
 
+        console.log("Réponse API contacts:", contacts); // Debugging
+
         if (contacts.length > 0) {
+            // Récupérer le contact correspondant
+            const contact = contacts[0];
+
+            // Sauvegarder l'utilisateur connecté dans localStorage
+            localStorage.setItem("currentUser", JSON.stringify(contact));
+
+            // Passer à l'étape de vérification du code
             document.getElementById("formTitle").textContent = "Vérification du code";
             document.getElementById("formDescription").textContent = "Entrez le code de vérification reçu.";
             document.getElementById("loginForm").innerHTML = `
@@ -83,8 +95,15 @@ function handleVerify(event) {
     const code = document.getElementById("code").value.trim();
 
     if (code === "266666") {
-        showMessage("Code correct ! Connexion réussie.", "success");
-        setTimeout(() => router("/home"));
+        // Récupérer l'utilisateur connecté depuis localStorage
+        const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+        if (currentUser) {
+            showMessage(`Bienvenue, ${currentUser.name} ! Connexion réussie.`, "success");
+            setTimeout(() => router("/home"), 2000);
+        } else {
+            showMessage("Erreur : utilisateur introuvable.", "error");
+        }
     } else {
         showMessage("Code incorrect. Veuillez réessayer.", "error");
     }

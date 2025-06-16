@@ -1,9 +1,15 @@
 import { router } from "./route";
-import { loadMessages } from "./home"; 
+import { loadMessages } from "./home";
+import { renderNewContact } from "./new-contact";
 
 export function renderNewDiscussion() {
-    const newDiscussionElement = document.createElement("div");
-    newDiscussionElement.innerHTML = `
+    const partie2 = document.getElementById("partie2"); // Cibler la partie 2
+    if (!partie2) {
+        console.error("Élément 'partie2' introuvable.");
+        return;
+    }
+
+    partie2.innerHTML = `
         <!-- PARTIE 2 (nouvelle discussion) -->
         <div id="newDiscussionPage" class="bg-white border-r border-gray-200 flex flex-col h-full w-full">
             <div id="entete" class="p-4 pb-2 flex flex-col bg-white">
@@ -31,7 +37,7 @@ export function renderNewDiscussion() {
 
     loadContacts();
 
-    const searchInput = newDiscussionElement.querySelector("#searchInput");
+    const searchInput = partie2.querySelector("#searchInput");
     searchInput.addEventListener("input", () => {
         const query = searchInput.value.trim().toLowerCase();
         if (query.length >= 2) {
@@ -41,20 +47,18 @@ export function renderNewDiscussion() {
         }
     });
 
-  
-    newDiscussionElement.querySelector("#backToHomeBtn").addEventListener("click", () => {
+    partie2.querySelector("#backToHomeBtn").addEventListener("click", () => {
         router("/home"); 
     });
 
-    newDiscussionElement.querySelector("#newGroupBtn").addEventListener("click", () => {
-        router("/new-groupe");
+    partie2.querySelector("#newGroupBtn").addEventListener("click", () => {
+        router("/new-groupe"); // Naviguer vers la page de création de groupe
     });
 
-    newDiscussionElement.querySelector("#newContactBtn").addEventListener("click", () => {
-        router("/new-contact");
+    // Gestionnaire pour le bouton Nouveau contact
+    partie2.querySelector("#newContactBtn").addEventListener("click", () => {
+        renderNewContact(); // Charger le formulaire de nouveau contact
     });
-
-    return newDiscussionElement;
 }
 
 async function loadContacts() {
@@ -65,13 +69,24 @@ async function loadContacts() {
 
         contactsList.innerHTML = ""; // Vider la liste des contacts
 
+        // Récupérer l'utilisateur connecté
+        const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+        if (!currentUser) {
+            console.error("Utilisateur connecté introuvable.");
+            return;
+        }
+
         contacts.forEach(contact => {
+            const isCurrentUser = contact.phone === currentUser.phone; // Vérifier si c'est l'utilisateur connecté
+
             const li = document.createElement("li");
             li.className = "flex items-center space-x-3 p-2 hover:bg-gray-100 rounded-lg cursor-pointer";
             li.innerHTML = `
                 <img src="${contact.avatar || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full">
                 <div class="flex-1">
-                    <p class="font-semibold text-gray-900">${contact.name}</p>
+                    <p class="font-semibold text-gray-900">
+                        ${contact.name} ${isCurrentUser ? '<span class="text-green-500">(vous)</span>' : ''}
+                    </p>
                     <p class="text-sm text-gray-500">${contact.status || 'Aucun statut disponible'}</p>
                 </div>
             `;
@@ -120,6 +135,14 @@ async function openChat(contact) {
     const messagesResponse = await fetch("https://json-server-vpom.onrender.com/messages");
     const messages = await messagesResponse.json();
 
+    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+    if (!currentUser) {
+        console.error("Utilisateur connecté introuvable.");
+        return;
+    }
+
+    const isCurrentUser = contact.phone === currentUser.phone; // Vérifier si c'est l'utilisateur connecté
+
     const partie3 = document.getElementById("partie3");
     partie3.innerHTML = `
         <!-- En-tête du chat -->
@@ -127,7 +150,9 @@ async function openChat(contact) {
             <div class="flex items-center space-x-3">
                 <img src="${contact.avatar || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full object-cover">
                 <div>
-                    <p id="chatName" class="font-semibold text-gray-900">${contact.name}</p>
+                    <p id="chatName" class="font-semibold text-gray-900">
+                        ${contact.name} ${isCurrentUser ? '<span class="text-green-500">(vous)</span>' : ''}
+                    </p>
                     <p class="text-sm text-gray-500">${contact.status || 'Aucun statut disponible'}</p>
                 </div>
             </div>
@@ -164,7 +189,7 @@ async function openChat(contact) {
     contactMessages
         .sort((a, b) => a.timestamp - b.timestamp) // Trier par date
         .forEach(msg => {
-            const isSentByCurrentUser = msg.senderId === "currentUser"; // Remplacez par l'ID de l'utilisateur connecté
+            const isSentByCurrentUser = msg.senderId === currentUser.id; // Vérifier si le message est envoyé par l'utilisateur connecté
             const messageDiv = document.createElement("div");
             messageDiv.className = `flex ${isSentByCurrentUser ? 'justify-end' : 'justify-start'} mb-3`;
             messageDiv.innerHTML = `
@@ -192,7 +217,7 @@ async function openChat(contact) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                senderId: "currentUser", // Remplacez par l'ID de l'utilisateur connecté
+                senderId: currentUser.id, // Utiliser l'ID de l'utilisateur connecté
                 receiverId: contact.id,
                 content,
                 timestamp: Date.now(),

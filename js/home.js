@@ -1,6 +1,9 @@
 import { renderLogin } from "./login";
 import { renderNewDiscussion } from "./new-discussion";
 
+// Variable globale pour stocker l'utilisateur connecté
+let currentUser = null;
+
 export const router = {
     navigate(path) {
         const app = document.getElementById("app");
@@ -13,6 +16,41 @@ export const router = {
         }
     }
 };
+
+// Fonction pour définir l'utilisateur connecté
+export function setCurrentUser(user) {
+    currentUser = user;
+    // Sauvegarder dans localStorage pour persistance
+    localStorage.setItem('currentUser', JSON.stringify(user));
+}
+
+// Fonction pour récupérer l'utilisateur connecté
+export async function getCurrentUser() {
+    try {
+        // Récupérer l'utilisateur connecté depuis localStorage
+        const savedUser = localStorage.getItem('currentUser');
+        if (savedUser) {
+            const user = JSON.parse(savedUser);
+
+            // Vérifier si l'utilisateur existe dans l'API
+            const response = await fetch(`https://json-server-vpom.onrender.com/contacts?phone=${encodeURIComponent(user.phone)}`);
+            const contacts = await response.json();
+
+            if (contacts.length > 0) {
+                return contacts[0]; // Retourner l'utilisateur trouvé
+            } else {
+                console.error("Utilisateur connecté introuvable dans l'API.");
+                return null;
+            }
+        } else {
+            console.error("Aucun utilisateur connecté trouvé dans localStorage.");
+            return null;
+        }
+    } catch (error) {
+        console.error("Erreur lors de la récupération de l'utilisateur connecté :", error);
+        return null;
+    }
+}
 
 export function renderHome() {
     const element = document.createElement("div");
@@ -29,7 +67,10 @@ export function renderHome() {
                 <button title="Paramètres" class="text-gray-600 hover:text-green-500 text-xl">
                     <i class="fas fa-cog"></i>
                 </button>
-                <div class="w-10 h-10 rounded-full bg-gray-300 text-white flex items-center justify-center text-sm font-bold uppercase" title="Mon profil">X</div>
+                <div id="userProfile" class="w-10 h-10 rounded-full bg-gray-300 text-white flex items-center justify-center text-sm font-bold uppercase cursor-pointer" title="Mon profil - Maina">
+                    <img id="currentUserAvatar" src="https://example.com/avatar.jpg" class="w-10 h-10 rounded-full object-cover">
+                    <span id="currentUserInitials" class="hidden">M</span>
+                </div>
             </div>
         </div>
         <!-- PARTIE 2 -->
@@ -101,6 +142,9 @@ export function renderHome() {
     </div>
     `;
 
+    // Initialiser l'utilisateur connecté et mettre à jour le profil
+    initializeCurrentUser();
+
     // Charger les contacts au démarrage
     loadContacts();
 
@@ -108,7 +152,7 @@ export function renderHome() {
     const searchInput = element.querySelector("#searchInput");
     searchInput.addEventListener("input", (event) => {
         const query = event.target.value.trim().toLowerCase();
-        loadContacts(query); // Charger les contacts en fonction de la recherche
+        loadContacts(query);
     });
 
     element.querySelector("#newDiscussionBtn").addEventListener("click", () => {
@@ -118,8 +162,10 @@ export function renderHome() {
     });
 
     element.querySelector("#logoutBtn").addEventListener("click", () => {
-        // Rediriger vers le formulaire de connexion
-        router.navigate("/login"); // Assurez-vous que "/login" correspond à la route de votre formulaire de connexion
+        // Supprimer les données de l'utilisateur connecté
+        localStorage.removeItem('currentUser');
+        currentUser = null;
+        router.navigate("/login");
     });
 
     element.addEventListener("input", () => {
@@ -134,6 +180,62 @@ export function renderHome() {
     return element;
 }
 
+// Fonction pour initialiser l'utilisateur connecté
+async function initializeCurrentUser() {
+    try {
+        // Récupérer l'utilisateur connecté
+        let user = await getCurrentUser();
+        
+        if (!user) {
+            const response = await fetch("https://json-server-vpom.onrender.com/contacts");
+            const contacts = await response.json();
+            
+            // Utiliser le premier contact comme utilisateur connecté par défaut
+            user = contacts[0];
+            
+            if (user) {
+                setCurrentUser(user);
+            }
+        }
+        
+        // Mettre à jour l'affichage du profil
+        updateUserProfile(user);
+        
+    } catch (error) {
+        console.error("Erreur lors de l'initialisation de l'utilisateur :", error);
+    }
+}
+
+// Fonction pour mettre à jour l'affichage du profil utilisateur
+function updateUserProfile(user) {
+    const avatarImg = document.getElementById("currentUserAvatar");
+    const initialsSpan = document.getElementById("currentUserInitials");
+    const profileDiv = document.getElementById("userProfile");
+
+    if (!avatarImg || !initialsSpan || !profileDiv) {
+        console.error("Éléments DOM pour le profil utilisateur introuvables.");
+        return;
+    }
+
+    if (user && user.avatar) {
+        avatarImg.src = user.avatar;
+        avatarImg.classList.remove("hidden");
+        initialsSpan.classList.add("hidden");
+        profileDiv.title = `Mon profil - ${user.name}`;
+    } else if (user && user.name) {
+        const initials = user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        initialsSpan.textContent = initials;
+        avatarImg.classList.add("hidden");
+        initialsSpan.classList.remove("hidden");
+        profileDiv.title = `Mon profil - ${user.name}`;
+    } else {
+        initialsSpan.textContent = "X";
+        avatarImg.classList.add("hidden");
+        initialsSpan.classList.remove("hidden");
+        profileDiv.title = "Mon profil";
+    }
+}
+
 async function loadContacts(query = "") {
     try {
         const contactsResponse = await fetch("https://json-server-vpom.onrender.com/contacts");
@@ -142,18 +244,32 @@ async function loadContacts(query = "") {
         const messages = await messagesResponse.json();
 
         const contactsList = document.getElementById("contactsList");
-        contactsList.innerHTML = ""; // Vider la liste des contacts
+        if (!contactsList) {
+            console.error("Élément DOM 'contactsList' introuvable.");
+            return;
+        }
 
-        // Filtrer les contacts en fonction de la recherche
+        contactsList.innerHTML = "";
+
         const filteredContacts = contacts.filter(contact =>
-            contact.name.toLowerCase().includes(query) || contact.phone.includes(query)
+            contact.name.toLowerCase().includes(query.toLowerCase()) || contact.phone.includes(query)
         );
 
-        // Trier et afficher les contacts
+        // Récupérer l'utilisateur connecté
+        const currentUser = getCurrentUser();
+        if (!currentUser) {
+            console.error("Utilisateur connecté introuvable.");
+            return;
+        }
+
         const sortedContacts = filteredContacts
             .map(contact => {
-                const msgs = messages.filter(msg => msg.senderId === contact.id || msg.receiverId === contact.id);
-                const lastMessage = msgs[msgs.length - 1];
+                const contactMessages = messages.filter(
+                    msg => (msg.senderId === contact.id && msg.receiverId === currentUser.id) ||
+                           (msg.senderId === currentUser.id && msg.receiverId === contact.id)
+                );
+
+                const lastMessage = contactMessages.length > 0 ? contactMessages[contactMessages.length - 1] : null;
                 return {
                     contact,
                     lastMessage,
@@ -166,6 +282,9 @@ async function loadContacts(query = "") {
             const lastMessageText = lastMessage ? lastMessage.content : "Aucun message";
             const lastTime = lastMessage ? new Date(lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
 
+            // Vérifier si le contact est l'utilisateur connecté
+            const isCurrentUser = contact.phone === currentUser.phone;
+
             const li = document.createElement("li");
             li.className = "flex items-center justify-between space-x-2 p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors";
 
@@ -173,7 +292,9 @@ async function loadContacts(query = "") {
                 <img src="${contact.avatar || 'https://via.placeholder.com/50'}" class="w-10 h-10 rounded-full object-cover">
                 <div class="flex-1 min-w-0 ml-3">
                     <div class="flex justify-between items-center">
-                        <p class="font-semibold text-gray-900 truncate">${contact.name}</p>
+                        <p class="font-semibold text-gray-900 truncate">
+                            ${contact.name} ${isCurrentUser ? '<span class="text-green-500">(vous)</span>' : ''}
+                        </p>
                         <span class="text-xs text-gray-400">${lastTime}</span>
                     </div>
                     <p class="text-sm text-gray-500 truncate">${lastMessageText}</p>
@@ -188,138 +309,165 @@ async function loadContacts(query = "") {
     }
 }
 
-function openChat(user) {
+function openChat(contact) {
     const header = document.getElementById("chatHeader");
     const messagesDiv = document.getElementById("messages");
     const input = document.getElementById("messageInput");
     const sendButton = document.getElementById("sendMessage");
     const messageInputArea = document.getElementById("messageInputArea");
 
+    // Afficher l'en-tête et la zone de saisie
     header.classList.remove("hidden");
     messageInputArea.classList.remove("hidden");
-    header.innerHTML = `
-        <div class="flex items-center justify-between w-full">
-            <div class="flex items-center space-x-3">
-                <img src="${user.avatar || 'https://via.placeholder.com/50'}" class="w-10 h-10 rounded-full object-cover">
-                <div>
-                    <p class="font-semibold text-gray-900">${user.name}</p>
+
+    // Récupérer l'utilisateur connecté depuis l'API
+    getCurrentUser().then(currentUser => {
+        if (!currentUser) {
+            console.error("Utilisateur connecté introuvable.");
+            return;
+        }
+
+        const isCurrentUser = contact.phone === currentUser.phone; // Vérifier si c'est l'utilisateur connecté
+
+        // Mettre à jour l'en-tête avec les informations du contact
+        header.innerHTML = `
+            <div class="flex items-center justify-between w-full">
+                <div class="flex items-center space-x-3">
+                    <img src="${contact.avatar || 'https://via.placeholder.com/50'}" class="w-10 h-10 rounded-full object-cover">
+                    <div>
+                        <p class="font-semibold text-gray-900">
+                            ${contact.name} ${isCurrentUser ? '<span class="text-green-500">(vous)</span>' : ''}
+                        </p>
+                        <p class="text-sm text-gray-500">
+                            ${contact.isOnline ? '<span class="text-green-400">En ligne</span>' : 'Hors ligne'}
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4 text-gray-600">
+                    <i class="fas fa-search cursor-pointer"></i>
+                    <i class="fas fa-ellipsis-v cursor-pointer"></i>
                 </div>
             </div>
-            <div class="flex items-center space-x-4 text-gray-600 ml-auto relative">
-                <i id="optionsButton" class="fas fa-ellipsis-v cursor-pointer"></i>
-                <!-- Menu contextuel -->
-                <div id="optionsMenu" class="absolute right-0 mt-2 w-40 bg-white border rounded-lg shadow-lg hidden">
-                    <button id="archiveButton" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Archiver</button>
-                    <button id="deleteButton" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Supprimer</button>
-                </div>
-            </div>
-        </div>
-    `;
+        `;
 
-    messagesDiv.innerHTML = "";
-    input.value = "";
-    sendButton.innerHTML = `<i class="fas fa-microphone text-sm"></i>`;
-    loadMessages(user.id);
+        // Réinitialiser la zone des messages et le champ de saisie
+        messagesDiv.innerHTML = "";
+        input.value = "";
+        sendButton.innerHTML = `<i class="fas fa-microphone text-sm"></i>`;
 
-    sendButton.onclick = () => sendMessage(user.id);
-
-    // Gestionnaire pour afficher/masquer le menu contextuel
-    const optionsButton = header.querySelector("#optionsButton");
-    const optionsMenu = header.querySelector("#optionsMenu");
-
-    optionsButton.addEventListener("click", () => {
-        optionsMenu.classList.toggle("hidden");
+        // Charger les messages pour ce contact
+        loadMessages(contact.phone); // Utiliser le numéro de téléphone comme contactId
     });
 
-    // Gestionnaire pour archiver
-    const archiveButton = header.querySelector("#archiveButton");
-    archiveButton.addEventListener("click", () => {
-        alert("Discussion archivée !");
-        optionsMenu.classList.add("hidden");
+    // Ajouter les événements pour l'input et l'envoi
+    input.addEventListener("input", () => {
+        sendButton.innerHTML = input.value.trim()
+            ? `<i class="fas fa-paper-plane text-sm"></i>`
+            : `<i class="fas fa-microphone text-sm"></i>`;
     });
 
-    // Gestionnaire pour supprimer
-    const deleteButton = header.querySelector("#deleteButton");
-    deleteButton.addEventListener("click", async () => {
-        if (confirm("Voulez-vous vraiment supprimer cette discussion ?")) {
-            await deleteMessages(user.id);
-            alert("Discussion supprimée !");
-            optionsMenu.classList.add("hidden");
-            messagesDiv.innerHTML = ""; // Vider les messages
+    // Événement pour envoyer avec Enter
+    input.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+            sendMessage(contact.phone); // Utiliser le numéro de téléphone comme contactId
         }
     });
+
+    // Ajouter un événement pour envoyer un message
+    sendButton.onclick = () => sendMessage(contact.phone);
 }
 
-export async function loadMessages(userId) {
+export async function loadMessages(contactId) {
     try {
         const response = await fetch("https://json-server-vpom.onrender.com/messages");
         const allMessages = await response.json();
         const messagesDiv = document.getElementById("messages");
 
-        messagesDiv.innerHTML = ""; 
+        if (!messagesDiv) {
+            console.error("Élément DOM 'messages' introuvable.");
+            return;
+        }
 
-        allMessages
-            .filter(msg => msg.senderId === userId || msg.receiverId === userId)
+        messagesDiv.innerHTML = "";
+
+        // Récupérer l'utilisateur connecté
+        const currentUser = getCurrentUser();
+        if (!currentUser) {
+            console.error("Utilisateur connecté introuvable.");
+            return;
+        }
+
+        // Filtrer les messages pour le contact actuel
+        const conversationMessages = allMessages.filter(msg => msg.contactId === contactId);
+
+        console.log(`Messages pour la conversation avec ${contactId}:`, conversationMessages);
+
+        // Trier les messages par timestamp
+        conversationMessages
             .sort((a, b) => a.timestamp - b.timestamp)
             .forEach(msg => {
                 const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const isMe = msg.status === "sent"; // Déterminer si le message est envoyé ou reçu
+
                 const div = document.createElement("div");
-                div.className = `flex ${msg.senderId === userId ? 'justify-start' : 'justify-end'} mb-3`;
+                div.className = `flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`;
                 div.innerHTML = `
-                    <div class="max-w-xs px-4 py-2 rounded-lg shadow-sm ${msg.senderId === userId ? 'bg-white border border-gray-200 text-gray-800' : 'bg-green-500 text-white'}">
+                    <div class="max-w-xs px-4 py-2 rounded-lg shadow-sm ${isMe ? 'bg-green-500 text-white' : 'bg-white border border-gray-200 text-gray-800'}">
                         <p>${msg.content}</p>
                         <div class="text-right text-xs mt-1 opacity-70">${time}</div>
+                        ${isMe ? '<span class="text-green-500">(vous)</span>' : ''}
                     </div>
                 `;
                 messagesDiv.appendChild(div);
             });
 
+        // Faire défiler vers le bas pour afficher le dernier message
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     } catch (error) {
-        console.error("Erreur chargement messages :", error); 
+        console.error("Erreur chargement messages :", error);
     }
 }
 
-async function sendMessage(receiverId) {
+async function sendMessage(contactId) {
     const input = document.getElementById("messageInput");
     const sendButton = document.getElementById("sendMessage");
     const content = input.value.trim();
 
-    if (!content) return; 
+    if (!content) return;
 
     try {
-        await fetch("https://json-server-vpom.onrender.com/messages", {
+        const messageData = {
+            id: `msg${Date.now()}`, // Générer un ID unique
+            contactId, // Utiliser contactId pour identifier le contact
+            content,
+            timestamp: Date.now(),
+            status: "sent" // Statut par défaut pour les messages envoyés
+        };
+
+        console.log("Données envoyées :", messageData); // Debugging
+
+        // Envoyer le message à JSON Server
+        const response = await fetch("https://json-server-vpom.onrender.com/messages", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                senderId: "currentUser", 
-                receiverId,
-                content,
-                timestamp: Date.now(),
-                status: "sent"
-            })
+            body: JSON.stringify(messageData)
         });
 
+        if (!response.ok) {
+            throw new Error(`Erreur HTTP: ${response.status}`);
+        }
+
+        const responseData = await response.json();
+        console.log("Réponse du serveur :", responseData);
+
+        // Réinitialiser le champ de saisie
         input.value = "";
         sendButton.innerHTML = `<i class="fas fa-microphone text-sm"></i>`;
 
-        loadMessages(receiverId);
+        // Recharger les messages pour la discussion actuelle
+        await loadMessages(contactId);
     } catch (error) {
         console.error("Erreur lors de l'envoi du message :", error);
-    }
-}
-
-async function getCurrentUser() {
-    try {
-        const response = await fetch("https://json-server-vpom.onrender.com/contacts");
-        const contacts = await response.json();
-
-        // Remplacez "currentUser" par l'ID ou le numéro de téléphone de l'utilisateur connecté
-        const currentUser = contacts.find(contact => contact.id === "currentUser");
-        return currentUser;
-    } catch (error) {
-        console.error("Erreur lors de la récupération de l'utilisateur connecté :", error);
-        return null;
     }
 }
 
@@ -327,13 +475,15 @@ async function deleteMessages(userId) {
     try {
         const response = await fetch("https://json-server-vpom.onrender.com/messages");
         const allMessages = await response.json();
+        
+        const user = getCurrentUser();
+        const currentUserId = user ? user.id : "currentUser";
 
-        // Filtrer les messages à supprimer
         const messagesToDelete = allMessages.filter(
-            msg => msg.senderId === userId || msg.receiverId === userId
+            msg => (msg.senderId === userId && msg.receiverId === currentUserId) ||
+                   (msg.senderId === currentUserId && msg.receiverId === userId)
         );
 
-        // Supprimer chaque message
         for (const message of messagesToDelete) {
             await fetch(`https://json-server-vpom.onrender.com/messages/${message.id}`, {
                 method: "DELETE"
@@ -348,13 +498,15 @@ async function archiveChat(userId) {
     try {
         const response = await fetch("https://json-server-vpom.onrender.com/messages");
         const allMessages = await response.json();
+        
+        const user = getCurrentUser();
+        const currentUserId = user ? user.id : "currentUser";
 
-        // Filtrer les messages à archiver
         const messagesToArchive = allMessages.filter(
-            msg => msg.senderId === userId || msg.receiverId === userId
+            msg => (msg.senderId === userId && msg.receiverId === currentUserId) ||
+                   (msg.senderId === currentUserId && msg.receiverId === userId)
         );
 
-        // Mettre à jour chaque message avec un champ "archived"
         for (const message of messagesToArchive) {
             await fetch(`https://json-server-vpom.onrender.com/messages/${message.id}`, {
                 method: "PATCH",
@@ -367,3 +519,120 @@ async function archiveChat(userId) {
     }
 }
 
+async function createTestMessages() {
+    const user = getCurrentUser();
+    const currentUserId = user ? user.id : "currentUser";
+    
+    const testMessages = [
+        {
+            senderId: "1",
+            receiverId: currentUserId,
+            content: "Salut ! Comment ça va ?",
+            timestamp: Date.now() - 3600000,
+            status: "delivered"
+        },
+        {
+            senderId: currentUserId,
+            receiverId: "1",
+            content: "Ça va bien, merci ! Et toi ?",
+            timestamp: Date.now() - 3000000,
+            status: "delivered"
+        },
+        {
+            senderId: "2",
+            receiverId: currentUserId,
+            content: "Tu es disponible pour une réunion demain ?",
+            timestamp: Date.now() - 1800000,
+            status: "sent"
+        }
+    ];
+
+    for (const message of testMessages) {
+        try {
+            await fetch("https://json-server-vpom.onrender.com/messages", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(message)
+            });
+        } catch (error) {
+            console.error("Erreur lors de la création des messages de test :", error);
+        }
+    }
+}
+
+window.addEventListener("load", async () => {
+    // Initialiser l'utilisateur connecté
+    await initializeCurrentUser();
+    
+    // Créer des messages de test (à faire une seule fois)
+    // await createTestMessages();
+
+    // Charger les contacts
+    const user = getCurrentUser();
+    if (user) {
+        console.log("Utilisateur courant :", user);
+        loadContacts();
+    } else {
+        console.error("Utilisateur courant non trouvé");
+    }
+});
+
+async function markMessagesAsRead(userId) {
+    try {
+        const response = await fetch("https://json-server-vpom.onrender.com/messages");
+        const allMessages = await response.json();
+        
+        const user = getCurrentUser();
+        const currentUserId = user ? user.id : "currentUser";
+
+        const unreadMessages = allMessages.filter(msg => 
+            msg.senderId === userId && 
+            msg.receiverId === currentUserId && 
+            msg.status !== "read"
+        );
+        
+        for (const message of unreadMessages) {
+            await fetch(`https://json-server-vpom.onrender.com/messages/${message.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: "read" })
+            });
+        }
+    } catch (error) {
+        console.error("Erreur lors du marquage des messages comme lus:", error);
+    }
+}
+
+async function handleLogin(event) {
+    event.preventDefault();
+    const phoneInput = document.getElementById("phone");
+    if (!phoneInput) {
+        console.error("Élément DOM 'phone' introuvable.");
+        return;
+    }
+
+    const phoneNumber = phoneInput.value.trim();
+
+    if (!/^\+?[0-9\s]+$/.test(phoneNumber)) {
+        showMessage("Le numéro ne doit contenir que des chiffres ou commencer par '+'.", "error");
+        return;
+    }
+
+    try {
+        const response = await fetch(`https://json-server-vpom.onrender.com/contacts?phone=${encodeURIComponent(phoneNumber)}`);
+        const contacts = await response.json();
+
+        if (contacts.length > 0) {
+            const contact = contacts[0];
+            setCurrentUser(contact); // Définir l'utilisateur connecté
+            updateUserProfile(contact); // Mettre à jour l'avatar dans la partie 1
+            showMessage("Connexion réussie !", "success");
+            setTimeout(() => router.navigate("/home"), 2000);
+        } else {
+            showMessage("Numéro introuvable. Veuillez vous inscrire.", "error");
+        }
+    } catch (error) {
+        console.error("Erreur de connexion :", error);
+        showMessage("Erreur serveur.", "error");
+    }
+}
