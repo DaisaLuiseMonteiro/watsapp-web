@@ -156,11 +156,14 @@ export function renderHome() {
         localStorage.removeItem('currentUser');
         currentUser = null;
         router.navigate("/login");
-    
     });
 
     element.querySelector("#groupsBtn").addEventListener("click", () => {
         loadGroups();
+    });
+
+    element.querySelector("#allContactsBtn").addEventListener("click", () => {
+        loadContacts(); 
     });
 
     element.addEventListener("input", () => {
@@ -309,7 +312,6 @@ async function openChat(contact) {
         return;
     }
 
-    // Configure l'en-tête du chat uniquement si ce n'est pas déjà fait
     if (!header.dataset.initialized || header.dataset.contactId !== contact.id) {
         header.innerHTML = `
             <div class="flex items-center justify-between w-full">
@@ -445,10 +447,8 @@ async function sendMessage(contactId) {
 
         input.value = "";
 
-        // Mettre à jour uniquement les messages dans la partie 3
         await loadMessages(contactId);
 
-        // Mettre à jour la liste des contacts dans la partie 2
         await loadContacts();
     } catch (error) {
         console.error("Erreur lors de l'envoi du message :", error);
@@ -630,7 +630,7 @@ async function loadGroups() {
             return;
         }
 
-        contactsList.innerHTML = ""; // Réinitialise la liste
+        contactsList.innerHTML = ""; 
 
         groups.forEach(group => {
             const li = document.createElement("li");
@@ -689,7 +689,6 @@ async function sendGroupMessage(groupId) {
 
         input.value = "";
 
-        // Mettre à jour les messages du groupe
         await openGroupChat({ id: groupId });
     } catch (error) {
         console.error("Erreur lors de l'envoi du message :", error);
