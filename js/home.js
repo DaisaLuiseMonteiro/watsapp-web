@@ -305,17 +305,22 @@ async function openChat(contact) {
         return;
     }
 
-    header.innerHTML = `
-        <div class="flex items-center justify-between w-full">
-            <div class="flex items-center space-x-3">
-                <img src="${contact.avatar || 'https://via.placeholder.com/50'}" class="w-10 h-10 rounded-full object-cover">
-                <div>
-                    <p class="font-semibold text-gray-900">${contact.name}</p>
-                    <p class="text-sm text-gray-500">${contact.isOnline ? "En ligne" : "Hors ligne"}</p>
+    // Configure l'en-tête du chat uniquement si ce n'est pas déjà fait
+    if (!header.dataset.initialized || header.dataset.contactId !== contact.id) {
+        header.innerHTML = `
+            <div class="flex items-center justify-between w-full">
+                <div class="flex items-center space-x-3">
+                    <img src="${contact.avatar || 'https://via.placeholder.com/50'}" class="w-10 h-10 rounded-full object-cover">
+                    <div>
+                        <p class="font-semibold text-gray-900">${contact.name}</p>
+                        <p class="text-sm text-gray-500">${contact.isOnline ? "En ligne" : "Hors ligne"}</p>
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
+        `;
+        header.dataset.initialized = "true";
+        header.dataset.contactId = contact.id;
+    }
 
     messagesDiv.innerHTML = "";
 
@@ -368,19 +373,21 @@ export async function loadMessages(contactId) {
 
         messagesDiv.innerHTML = "";
 
-        const currentUser = getCurrentUser();
+        const currentUser = await getCurrentUser();
         if (!currentUser) {
             console.error("Utilisateur connecté introuvable.");
             return;
         }
 
-        const conversationMessages = allMessages.filter(msg => msg.contactId === contactId);
-
-        console.log(`Messages pour la conversation avec ${contactId}:`, conversationMessages);
+        const conversationMessages = allMessages.filter(
+            msg => (msg.senderId === contactId && msg.receiverId === currentUser.id) ||
+                   (msg.senderId === currentUser.id && msg.receiverId === contactId)
+        );
 
         conversationMessages
             .sort((a, b) => a.timestamp - b.timestamp)
             .forEach(msg => {
+                const isMe = msg.senderId === currentUser.id;
                 const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                 const div = document.createElement("div");
@@ -389,7 +396,6 @@ export async function loadMessages(contactId) {
                     <div class="max-w-xs px-4 py-2 rounded-lg shadow-sm ${isMe ? 'bg-green-500 text-white' : 'bg-white border border-gray-200 text-gray-800'}">
                         <p>${msg.content}</p>
                         <div class="text-right text-xs mt-1 opacity-70">${time}</div>
-                        ${isMe ? '<span class="text-green-500">(vous)</span>' : ''}
                     </div>
                 `;
                 messagesDiv.appendChild(div);
@@ -435,10 +441,10 @@ async function sendMessage(contactId) {
 
         input.value = "";
 
-        // Recharger les messages de la discussion
-        await openChat({ id: contactId });
+        // Mettre à jour uniquement les messages dans la partie 3
+        await loadMessages(contactId);
 
-        // Mettre à jour la liste des contacts
+        // Mettre à jour la liste des contacts dans la partie 2
         await loadContacts();
     } catch (error) {
         console.error("Erreur lors de l'envoi du message :", error);

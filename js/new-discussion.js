@@ -52,7 +52,7 @@ export function renderNewDiscussion() {
     });
 
     partie2.querySelector("#newGroupBtn").addEventListener("click", () => {
-        router("/new-groupe"); 
+        router("/new-groupe"); // Naviguer vers la page de création de groupe
     });
 
     partie2.querySelector("#newContactBtn").addEventListener("click", () => {
