@@ -1,7 +1,6 @@
 import { renderLogin } from "./login";
 import { renderNewDiscussion } from "./new-discussion";
 
-// Variable globale pour stocker l'utilisateur connecté
 let currentUser = null;
 
 export const router = {
@@ -17,27 +16,22 @@ export const router = {
     }
 };
 
-// Fonction pour définir l'utilisateur connecté
 export function setCurrentUser(user) {
     currentUser = user;
-    // Sauvegarder dans localStorage pour persistance
     localStorage.setItem('currentUser', JSON.stringify(user));
 }
 
-// Fonction pour récupérer l'utilisateur connecté
 export async function getCurrentUser() {
     try {
-        // Récupérer l'utilisateur connecté depuis localStorage
         const savedUser = localStorage.getItem('currentUser');
         if (savedUser) {
             const user = JSON.parse(savedUser);
 
-            // Vérifier si l'utilisateur existe dans l'API
             const response = await fetch(`https://json-server-vpom.onrender.com/contacts?phone=${encodeURIComponent(user.phone)}`);
             const contacts = await response.json();
 
             if (contacts.length > 0) {
-                return contacts[0]; // Retourner l'utilisateur trouvé
+                return contacts[0]; 
             } else {
                 console.error("Utilisateur connecté introuvable dans l'API.");
                 return null;
@@ -142,13 +136,10 @@ export function renderHome() {
     </div>
     `;
 
-    // Initialiser l'utilisateur connecté et mettre à jour le profil
     initializeCurrentUser();
 
-    // Charger les contacts au démarrage
     loadContacts();
 
-    // Ajouter un gestionnaire d'événements pour le filtrage
     const searchInput = element.querySelector("#searchInput");
     searchInput.addEventListener("input", (event) => {
         const query = event.target.value.trim().toLowerCase();
@@ -162,10 +153,10 @@ export function renderHome() {
     });
 
     element.querySelector("#logoutBtn").addEventListener("click", () => {
-        // Supprimer les données de l'utilisateur connecté
         localStorage.removeItem('currentUser');
         currentUser = null;
         router.navigate("/login");
+    
     });
 
     element.addEventListener("input", () => {
@@ -180,17 +171,14 @@ export function renderHome() {
     return element;
 }
 
-// Fonction pour initialiser l'utilisateur connecté
 async function initializeCurrentUser() {
     try {
-        // Récupérer l'utilisateur connecté
         let user = await getCurrentUser();
         
         if (!user) {
             const response = await fetch("https://json-server-vpom.onrender.com/contacts");
             const contacts = await response.json();
             
-            // Utiliser le premier contact comme utilisateur connecté par défaut
             user = contacts[0];
             
             if (user) {
@@ -198,7 +186,6 @@ async function initializeCurrentUser() {
             }
         }
         
-        // Mettre à jour l'affichage du profil
         updateUserProfile(user);
         
     } catch (error) {
@@ -206,7 +193,6 @@ async function initializeCurrentUser() {
     }
 }
 
-// Fonction pour mettre à jour l'affichage du profil utilisateur
 function updateUserProfile(user) {
     const avatarImg = document.getElementById("currentUserAvatar");
     const initialsSpan = document.getElementById("currentUserInitials");
@@ -251,16 +237,15 @@ async function loadContacts(query = "") {
 
         contactsList.innerHTML = "";
 
-        const filteredContacts = contacts.filter(contact =>
-            contact.name.toLowerCase().includes(query.toLowerCase()) || contact.phone.includes(query)
-        );
-
-        // Récupérer l'utilisateur connecté
-        const currentUser = getCurrentUser();
+        const currentUser = await getCurrentUser();
         if (!currentUser) {
             console.error("Utilisateur connecté introuvable.");
             return;
         }
+
+        const filteredContacts = contacts.filter(contact =>
+            contact.name.toLowerCase().includes(query.toLowerCase()) || contact.phone.includes(query)
+        );
 
         const sortedContacts = filteredContacts
             .map(contact => {
@@ -282,9 +267,6 @@ async function loadContacts(query = "") {
             const lastMessageText = lastMessage ? lastMessage.content : "Aucun message";
             const lastTime = lastMessage ? new Date(lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
 
-            // Vérifier si le contact est l'utilisateur connecté
-            const isCurrentUser = contact.phone === currentUser.phone;
-
             const li = document.createElement("li");
             li.className = "flex items-center justify-between space-x-2 p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors";
 
@@ -292,9 +274,7 @@ async function loadContacts(query = "") {
                 <img src="${contact.avatar || 'https://via.placeholder.com/50'}" class="w-10 h-10 rounded-full object-cover">
                 <div class="flex-1 min-w-0 ml-3">
                     <div class="flex justify-between items-center">
-                        <p class="font-semibold text-gray-900 truncate">
-                            ${contact.name} ${isCurrentUser ? '<span class="text-green-500">(vous)</span>' : ''}
-                        </p>
+                        <p class="font-semibold text-gray-900 truncate">${contact.name}</p>
                         <span class="text-xs text-gray-400">${lastTime}</span>
                     </div>
                     <p class="text-sm text-gray-500 truncate">${lastMessageText}</p>
@@ -309,72 +289,70 @@ async function loadContacts(query = "") {
     }
 }
 
-function openChat(contact) {
+async function openChat(contact) {
     const header = document.getElementById("chatHeader");
     const messagesDiv = document.getElementById("messages");
     const input = document.getElementById("messageInput");
     const sendButton = document.getElementById("sendMessage");
     const messageInputArea = document.getElementById("messageInputArea");
 
-    // Afficher l'en-tête et la zone de saisie
     header.classList.remove("hidden");
     messageInputArea.classList.remove("hidden");
 
-    // Récupérer l'utilisateur connecté depuis l'API
-    getCurrentUser().then(currentUser => {
-        if (!currentUser) {
-            console.error("Utilisateur connecté introuvable.");
-            return;
-        }
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+        console.error("Utilisateur connecté introuvable.");
+        return;
+    }
 
-        const isCurrentUser = contact.phone === currentUser.phone; // Vérifier si c'est l'utilisateur connecté
-
-        // Mettre à jour l'en-tête avec les informations du contact
-        header.innerHTML = `
-            <div class="flex items-center justify-between w-full">
-                <div class="flex items-center space-x-3">
-                    <img src="${contact.avatar || 'https://via.placeholder.com/50'}" class="w-10 h-10 rounded-full object-cover">
-                    <div>
-                        <p class="font-semibold text-gray-900">
-                            ${contact.name} ${isCurrentUser ? '<span class="text-green-500">(vous)</span>' : ''}
-                        </p>
-                        <p class="text-sm text-gray-500">
-                            ${contact.isOnline ? '<span class="text-green-400">En ligne</span>' : 'Hors ligne'}
-                        </p>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-4 text-gray-600">
-                    <i class="fas fa-search cursor-pointer"></i>
-                    <i class="fas fa-ellipsis-v cursor-pointer"></i>
+    header.innerHTML = `
+        <div class="flex items-center justify-between w-full">
+            <div class="flex items-center space-x-3">
+                <img src="${contact.avatar || 'https://via.placeholder.com/50'}" class="w-10 h-10 rounded-full object-cover">
+                <div>
+                    <p class="font-semibold text-gray-900">${contact.name}</p>
+                    <p class="text-sm text-gray-500">${contact.isOnline ? "En ligne" : "Hors ligne"}</p>
                 </div>
             </div>
-        `;
+        </div>
+    `;
 
-        // Réinitialiser la zone des messages et le champ de saisie
-        messagesDiv.innerHTML = "";
-        input.value = "";
-        sendButton.innerHTML = `<i class="fas fa-microphone text-sm"></i>`;
+    messagesDiv.innerHTML = "";
 
-        // Charger les messages pour ce contact
-        loadMessages(contact.phone); // Utiliser le numéro de téléphone comme contactId
-    });
+    const response = await fetch("https://json-server-vpom.onrender.com/messages");
+    const allMessages = await response.json();
 
-    // Ajouter les événements pour l'input et l'envoi
+    const conversationMessages = allMessages.filter(
+        msg => (msg.senderId === contact.id && msg.receiverId === currentUser.id) ||
+               (msg.senderId === currentUser.id && msg.receiverId === contact.id)
+    );
+
+    conversationMessages
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .forEach(msg => {
+            const isMe = msg.senderId === currentUser.id;
+            const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            const div = document.createElement("div");
+            div.className = `flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`;
+            div.innerHTML = `
+                <div class="max-w-xs px-4 py-2 rounded-lg shadow-sm ${isMe ? 'bg-green-500 text-white' : 'bg-white border border-gray-200 text-gray-800'}">
+                    <p>${msg.content}</p>
+                    <div class="text-right text-xs mt-1 opacity-70">${time}</div>
+                </div>
+            `;
+            messagesDiv.appendChild(div);
+        });
+
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
     input.addEventListener("input", () => {
         sendButton.innerHTML = input.value.trim()
             ? `<i class="fas fa-paper-plane text-sm"></i>`
             : `<i class="fas fa-microphone text-sm"></i>`;
     });
 
-    // Événement pour envoyer avec Enter
-    input.addEventListener("keypress", (e) => {
-        if (e.key === "Enter") {
-            sendMessage(contact.phone); // Utiliser le numéro de téléphone comme contactId
-        }
-    });
-
-    // Ajouter un événement pour envoyer un message
-    sendButton.onclick = () => sendMessage(contact.phone);
+    sendButton.onclick = () => sendMessage(contact.id);
 }
 
 export async function loadMessages(contactId) {
@@ -390,24 +368,20 @@ export async function loadMessages(contactId) {
 
         messagesDiv.innerHTML = "";
 
-        // Récupérer l'utilisateur connecté
         const currentUser = getCurrentUser();
         if (!currentUser) {
             console.error("Utilisateur connecté introuvable.");
             return;
         }
 
-        // Filtrer les messages pour le contact actuel
         const conversationMessages = allMessages.filter(msg => msg.contactId === contactId);
 
         console.log(`Messages pour la conversation avec ${contactId}:`, conversationMessages);
 
-        // Trier les messages par timestamp
         conversationMessages
             .sort((a, b) => a.timestamp - b.timestamp)
             .forEach(msg => {
                 const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const isMe = msg.status === "sent"; // Déterminer si le message est envoyé ou reçu
 
                 const div = document.createElement("div");
                 div.className = `flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`;
@@ -421,7 +395,6 @@ export async function loadMessages(contactId) {
                 messagesDiv.appendChild(div);
             });
 
-        // Faire défiler vers le bas pour afficher le dernier message
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     } catch (error) {
         console.error("Erreur chargement messages :", error);
@@ -430,23 +403,26 @@ export async function loadMessages(contactId) {
 
 async function sendMessage(contactId) {
     const input = document.getElementById("messageInput");
-    const sendButton = document.getElementById("sendMessage");
     const content = input.value.trim();
 
     if (!content) return;
 
     try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser) {
+            console.error("Utilisateur connecté introuvable.");
+            return;
+        }
+
         const messageData = {
-            id: `msg${Date.now()}`, // Générer un ID unique
-            contactId, // Utiliser contactId pour identifier le contact
+            id: `msg${Date.now()}`,
+            senderId: currentUser.id,
+            receiverId: contactId,
             content,
             timestamp: Date.now(),
-            status: "sent" // Statut par défaut pour les messages envoyés
+            status: "sent"
         };
 
-        console.log("Données envoyées :", messageData); // Debugging
-
-        // Envoyer le message à JSON Server
         const response = await fetch("https://json-server-vpom.onrender.com/messages", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -457,15 +433,13 @@ async function sendMessage(contactId) {
             throw new Error(`Erreur HTTP: ${response.status}`);
         }
 
-        const responseData = await response.json();
-        console.log("Réponse du serveur :", responseData);
-
-        // Réinitialiser le champ de saisie
         input.value = "";
-        sendButton.innerHTML = `<i class="fas fa-microphone text-sm"></i>`;
 
-        // Recharger les messages pour la discussion actuelle
-        await loadMessages(contactId);
+        // Recharger les messages de la discussion
+        await openChat({ id: contactId });
+
+        // Mettre à jour la liste des contacts
+        await loadContacts();
     } catch (error) {
         console.error("Erreur lors de l'envoi du message :", error);
     }
@@ -561,13 +535,8 @@ async function createTestMessages() {
 }
 
 window.addEventListener("load", async () => {
-    // Initialiser l'utilisateur connecté
     await initializeCurrentUser();
     
-    // Créer des messages de test (à faire une seule fois)
-    // await createTestMessages();
-
-    // Charger les contacts
     const user = getCurrentUser();
     if (user) {
         console.log("Utilisateur courant :", user);
@@ -624,8 +593,8 @@ async function handleLogin(event) {
 
         if (contacts.length > 0) {
             const contact = contacts[0];
-            setCurrentUser(contact); // Définir l'utilisateur connecté
-            updateUserProfile(contact); // Mettre à jour l'avatar dans la partie 1
+            setCurrentUser(contact); 
+            updateUserProfile(contact); 
             showMessage("Connexion réussie !", "success");
             setTimeout(() => router.navigate("/home"), 2000);
         } else {

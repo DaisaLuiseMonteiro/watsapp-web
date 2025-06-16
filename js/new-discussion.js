@@ -3,7 +3,7 @@ import { loadMessages } from "./home";
 import { renderNewContact } from "./new-contact";
 
 export function renderNewDiscussion() {
-    const partie2 = document.getElementById("partie2"); // Cibler la partie 2
+    const partie2 = document.getElementById("partie2"); 
     if (!partie2) {
         console.error("Élément 'partie2' introuvable.");
         return;
@@ -52,12 +52,11 @@ export function renderNewDiscussion() {
     });
 
     partie2.querySelector("#newGroupBtn").addEventListener("click", () => {
-        router("/new-groupe"); // Naviguer vers la page de création de groupe
+        router("/new-groupe"); 
     });
 
-    // Gestionnaire pour le bouton Nouveau contact
     partie2.querySelector("#newContactBtn").addEventListener("click", () => {
-        renderNewContact(); // Charger le formulaire de nouveau contact
+        renderNewContact(); 
     });
 }
 
@@ -67,9 +66,8 @@ async function loadContacts() {
         const contacts = await response.json();
         const contactsList = document.getElementById("contactsList");
 
-        contactsList.innerHTML = ""; // Vider la liste des contacts
+        contactsList.innerHTML = ""; 
 
-        // Récupérer l'utilisateur connecté
         const currentUser = JSON.parse(localStorage.getItem("currentUser"));
         if (!currentUser) {
             console.error("Utilisateur connecté introuvable.");
@@ -77,7 +75,7 @@ async function loadContacts() {
         }
 
         contacts.forEach(contact => {
-            const isCurrentUser = contact.phone === currentUser.phone; // Vérifier si c'est l'utilisateur connecté
+            const isCurrentUser = contact.phone === currentUser.phone;
 
             const li = document.createElement("li");
             li.className = "flex items-center space-x-3 p-2 hover:bg-gray-100 rounded-lg cursor-pointer";
@@ -91,7 +89,7 @@ async function loadContacts() {
                 </div>
             `;
 
-            li.addEventListener("click", () => openChat(contact)); // Ouvrir la discussion avec ce contact
+            li.addEventListener("click", () => openChat(contact)); 
 
             contactsList.appendChild(li);
         });
@@ -109,7 +107,7 @@ async function filterContacts(query) {
         );
 
         const contactsList = document.getElementById("contactsList");
-        contactsList.innerHTML = ""; // Vider la liste des contacts
+        contactsList.innerHTML = ""; 
 
         filteredContacts.forEach(contact => {
             const li = document.createElement("li");
@@ -122,7 +120,7 @@ async function filterContacts(query) {
                 </div>
             `;
 
-            li.addEventListener("click", () => openChat(contact)); // Ouvrir la discussion avec ce contact
+            li.addEventListener("click", () => openChat(contact)); 
 
             contactsList.appendChild(li);
         });
@@ -141,7 +139,7 @@ async function openChat(contact) {
         return;
     }
 
-    const isCurrentUser = contact.phone === currentUser.phone; // Vérifier si c'est l'utilisateur connecté
+    const isCurrentUser = contact.phone === currentUser.phone; 
 
     const partie3 = document.getElementById("partie3");
     partie3.innerHTML = `
@@ -178,18 +176,16 @@ async function openChat(contact) {
         </div>
     `;
 
-    // Filtrer les messages pour ce contact
     const contactMessages = messages.filter(
         msg => msg.senderId === contact.id || msg.receiverId === contact.id
     );
 
     const messagesDiv = document.getElementById("messages");
 
-    // Afficher les messages
     contactMessages
-        .sort((a, b) => a.timestamp - b.timestamp) // Trier par date
+        .sort((a, b) => a.timestamp - b.timestamp) 
         .forEach(msg => {
-            const isSentByCurrentUser = msg.senderId === currentUser.id; // Vérifier si le message est envoyé par l'utilisateur connecté
+            const isSentByCurrentUser = msg.senderId === currentUser.id; 
             const messageDiv = document.createElement("div");
             messageDiv.className = `flex ${isSentByCurrentUser ? 'justify-end' : 'justify-start'} mb-3`;
             messageDiv.innerHTML = `
@@ -205,19 +201,17 @@ async function openChat(contact) {
             messagesDiv.appendChild(messageDiv);
         });
 
-    // Ajouter un événement pour envoyer un message
     const sendButton = document.getElementById("sendMessage");
     const input = document.getElementById("messageInput");
     sendButton.addEventListener("click", async () => {
         const content = input.value.trim();
         if (!content) return;
 
-        // Envoyer le message à l'API
         await fetch("https://json-server-vpom.onrender.com/messages", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                senderId: currentUser.id, // Utiliser l'ID de l'utilisateur connecté
+                senderId: currentUser.id, 
                 receiverId: contact.id,
                 content,
                 timestamp: Date.now(),
@@ -225,7 +219,6 @@ async function openChat(contact) {
             })
         });
 
-        // Réinitialiser le champ de saisie et recharger les messages
         input.value = "";
         openChat(contact);
     });

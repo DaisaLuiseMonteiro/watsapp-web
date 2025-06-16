@@ -63,22 +63,19 @@ function showMessage(message, type = "error") {
     }, 3000);
 }
 
-// Fonction pour générer un avatar avec les initiales
 function generateAvatarUrl(name) {
     const initials = name
         .split(' ')
         .map(word => word.charAt(0).toUpperCase())
         .join('')
-        .substring(0, 2); // Maximum 2 initiales
+        .substring(0, 2); 
     
-    // Couleurs de fond variées pour les avatars
     const colors = ['25d366', '007bff', 'dc3545', 'ffc107', '6f42c1', '20c997', 'fd7e14', 'e83e8c'];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
     
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=${randomColor}&color=fff&size=128&font-size=0.6`;
 }
 
-// Fonction pour vérifier la connexion au serveur JSON
 async function checkServerConnection() {
     try {
         const response = await fetch("https://json-server-vpom.onrender.com/contacts", {
@@ -91,7 +88,6 @@ async function checkServerConnection() {
     }
 }
 
-// Fonction pour sauvegarder les données avec retry en cas d'échec
 async function saveContactWithRetry(contactData, maxRetries = 3) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
@@ -116,7 +112,6 @@ async function saveContactWithRetry(contactData, maxRetries = 3) {
                 throw error;
             }
             
-            // Attendre avant de réessayer
             await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
         }
     }
@@ -128,20 +123,17 @@ async function handleRegister(event) {
     const phoneNumber = document.getElementById("phone").value.trim();
     const status = document.getElementById("status").value;
 
-    // Validation du nom
     if (name.length < 2) {
         showMessage("Le nom doit contenir au moins 2 caractères.", "error");
         return;
     }
 
-    // Validation du numéro de téléphone : uniquement des chiffres
     if (!/^\d+$/.test(phoneNumber)) {
         showMessage("Le numéro de téléphone doit contenir uniquement des chiffres.", "error");
         return;
     }
 
     try {
-        // Vérifier si le numéro existe déjà
         const response = await fetch("https://json-server-vpom.onrender.com/contacts");
         const contacts = await response.json();
         const contactExists = contacts.some(contact => contact.phone === phoneNumber);
@@ -151,9 +143,8 @@ async function handleRegister(event) {
             return;
         }
 
-        // Créer l'objet contact avec toutes les données nécessaires
         const newContact = {
-            id: Date.now().toString(), // ID unique basé sur timestamp
+            id: Date.now().toString(), 
             name: name,
             phone: phoneNumber,
             status: status,
@@ -163,7 +154,6 @@ async function handleRegister(event) {
             isOnline: true
         };
 
-        // Sauvegarder sur le serveur JSON
         const saveResponse = await fetch("https://json-server-vpom.onrender.com/contacts", {
             method: "POST",
             headers: { 
@@ -179,7 +169,6 @@ async function handleRegister(event) {
 
         showMessage("Inscription réussie ! Redirection vers la connexion...", "success");
 
-        // Rediriger vers la page de connexion après 2 secondes
         setTimeout(() => {
             router("/login");
         }, 2000);
@@ -275,7 +264,6 @@ async function loadContacts(query = "") {
             contactsList.appendChild(li);
         });
 
-        // Afficher un message si aucun contact n'est trouvé
         if (sortedContacts.length === 0) {
             const noContactsMessage = document.createElement("li");
             noContactsMessage.className = "p-4 text-center text-gray-500";
@@ -380,7 +368,6 @@ export async function renderHome() {
         </div>
     `;
 
-    // Ajouter les gestionnaires d'événements
     const searchInput = element.querySelector("#searchInput");
     const refreshBtn = element.querySelector("#refreshBtn");
     const logoutBtn = element.querySelector("#logoutBtn");
@@ -404,7 +391,6 @@ export async function renderHome() {
         });
     }
 
-    // Charger les contacts initialement
     setTimeout(() => loadContacts(), 100);
 
     return element;

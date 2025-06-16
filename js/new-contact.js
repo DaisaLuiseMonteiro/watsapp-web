@@ -1,7 +1,7 @@
 import { renderNewDiscussion } from "./new-discussion";
 
 export function renderNewContact() {
-    const partie2 = document.getElementById("partie2"); // Cibler la partie 2
+    const partie2 = document.getElementById("partie2"); 
     if (!partie2) {
         console.error("Élément 'partie2' introuvable.");
         return;
@@ -43,16 +43,14 @@ export function renderNewContact() {
         </div>
     `;
 
-    // Gestionnaire pour le bouton de retour
     partie2.querySelector("#backToNewDiscussionBtn").addEventListener("click", () => {
-        renderNewDiscussion(); // Charger la page Nouvelle discussion
+        renderNewDiscussion(); 
+        
     });
 
-    // Gestionnaire pour soumettre le formulaire
     partie2.querySelector("#contactForm").addEventListener("submit", handleNewContact);
 }
 
-// Fonction pour gérer l'enregistrement d'un nouveau contact
 async function handleNewContact(event) {
     event.preventDefault();
 
@@ -62,18 +60,15 @@ async function handleNewContact(event) {
     messageContainer.id = "messageContainer";
     messageContainer.className = "text-sm text-red-500 mt-2";
 
-    // Supprimer les anciens messages d'erreur
     const existingMessage = document.getElementById("messageContainer");
     if (existingMessage) existingMessage.remove();
 
-    // Vérification des champs obligatoires
     if (!name || !phone) {
         messageContainer.textContent = "Veuillez remplir tous les champs obligatoires.";
         document.getElementById("contactForm").appendChild(messageContainer);
         return;
     }
 
-    // Vérification que le numéro contient uniquement des chiffres
     if (!/^\d+$/.test(phone)) {
         messageContainer.textContent = "Le numéro de téléphone doit contenir uniquement des chiffres.";
         document.getElementById("contactForm").appendChild(messageContainer);
@@ -81,11 +76,9 @@ async function handleNewContact(event) {
     }
 
     try {
-        // Récupérer les contacts existants
         const response = await fetch("https://json-server-vpom.onrender.com/contacts");
         const contacts = await response.json();
 
-        // Vérifier si le numéro de téléphone existe déjà
         const phoneExists = contacts.some(contact => contact.phone === phone);
         if (phoneExists) {
             messageContainer.textContent = "Ce numéro de téléphone est déjà enregistré.";
@@ -93,22 +86,19 @@ async function handleNewContact(event) {
             return;
         }
 
-        // Vérifier si le nom existe déjà
         let uniqueName = name;
         const nameExists = contacts.some(contact => contact.name === name);
         if (nameExists) {
-            uniqueName = `${name}2`; // Ajouter "2" au nom
+            uniqueName = `${name}2`;
         }
 
-        // Générer un avatar basé sur les initiales
         const initials = uniqueName
             .split(" ")
             .map(word => word.charAt(0).toUpperCase())
             .join("")
-            .substring(0, 2); // Maximum 2 initiales
+            .substring(0, 2); 
         const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=25d366&color=fff`;
 
-        // Créer un nouvel objet contact
         const newContact = {
             id: Date.now().toString(),
             name: uniqueName,
@@ -117,7 +107,6 @@ async function handleNewContact(event) {
             isOnline: false,
         };
 
-        // Enregistrer le contact dans JSON Server
         const saveResponse = await fetch("https://json-server-vpom.onrender.com/contacts", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -128,11 +117,10 @@ async function handleNewContact(event) {
             throw new Error("Erreur lors de l'enregistrement du contact.");
         }
 
-        // Rediriger directement vers la page Nouvelle discussion
         const partie2 = document.getElementById("partie2");
         if (partie2) {
-            partie2.innerHTML = ""; // Vider la partie 2
-            partie2.appendChild(renderNewDiscussion()); // Charger la page Nouvelle discussion
+            partie2.innerHTML = ""; 
+            partie2.appendChild(renderNewDiscussion());
         }
     } catch (error) {
         console.error("Erreur lors de l'enregistrement du contact :", error);

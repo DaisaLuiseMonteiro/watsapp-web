@@ -3,7 +3,7 @@ import { renderRegister } from "./register";
 import { renderHome } from "./home";
 import { renderNewDiscussion } from "./new-discussion";
 import { renderNewContact } from "./new-contact";
-import { renderNewGroup } from "./new-groupe";
+// import { renderNewGroup } from "./new-groupe";
 
 const route = {
     "/login": renderLogin,
@@ -11,7 +11,7 @@ const route = {
     "/home": renderHome,
     "/newDiscussion": renderNewDiscussion,
     "/new-contact": renderNewContact,
-    "/new-groupe": renderNewGroup, // Route pour Nouveau groupe
+    // "/new-groupe": renderNewGroup, 
 };
 
 export function router(path = "/login") {

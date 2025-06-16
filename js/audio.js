@@ -33,7 +33,6 @@ let mediaRecorder;
 let audioChunks = [];
 let isRecording = false;
 
-// Démarrer l'enregistrement vocal
 function startRecording() {
     navigator.mediaDevices.getUserMedia({ audio: true })
         .then(stream => {
@@ -55,7 +54,6 @@ function startRecording() {
         .catch(error => console.error("Erreur d'accès au micro :", error));
 }
 
-// Arrêter l'enregistrement vocal
 function stopRecording() {
     if (mediaRecorder && isRecording) {
         mediaRecorder.stop();
@@ -63,9 +61,8 @@ function stopRecording() {
     }
 }
 
-// Sauvegarder le message vocal
 async function saveAudioMessage(audioUrl) {
-    const receiverId = window.currentChatUserId; // ID du contact en cours
+    const receiverId = window.currentChatUserId;
     if (!receiverId) return;
 
     const audioMessage = {
