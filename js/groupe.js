@@ -59,6 +59,7 @@ export async function loadGroupsInContainer(container) {
                 </div>
             `;
 
+            // Ajouter un gestionnaire de clic pour ouvrir la conversation du groupe
             li.addEventListener("click", () => {
                 openGroupChat(group); // Ouvrir la conversation du groupe
             });
@@ -66,7 +67,7 @@ export async function loadGroupsInContainer(container) {
             container.appendChild(li);
         });
     } catch (error) {
-        console.error("Erreur chargement groupes :", error);
+        console.error("Erreur lors du chargement des groupes :", error);
         container.innerHTML = `
             <li class="text-center text-red-500 py-8">
                 <i class="fas fa-exclamation-triangle text-4xl mb-2"></i>
@@ -139,6 +140,11 @@ async function openGroupChat(group) {
     const input = document.getElementById("messageInput");
     const sendButton = document.getElementById("sendMessage");
 
+    if (!chatHeader || !messagesDiv || !messageInputArea || !input || !sendButton) {
+        console.error("Éléments DOM nécessaires introuvables pour afficher le groupe.");
+        return;
+    }
+
     // Afficher l'en-tête du groupe
     chatHeader.classList.remove("hidden");
     chatHeader.innerHTML = `
@@ -155,14 +161,17 @@ async function openGroupChat(group) {
     messagesDiv.innerHTML = ""; // Vider les messages précédents
     messageInputArea.classList.remove("hidden");
 
-    // Charger les messages du groupe
     try {
+        // Charger les messages du groupe via l'API
         const response = await fetch(`https://json-server-vpom.onrender.com/messages?groupId=${group.id}`);
+        if (!response.ok) {
+            throw new Error(`Erreur HTTP: ${response.status}`);
+        }
+
         const messages = await response.json();
 
         // Récupérer l'utilisateur actuel
-        const currentUserResponse = await getCurrentUser();
-        const currentUser = currentUserResponse;
+        const currentUser = await getCurrentUser();
 
         messages.forEach(msg => {
             const isMe = msg.senderId === currentUser.id;
@@ -181,7 +190,7 @@ async function openGroupChat(group) {
 
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     } catch (error) {
-        console.error("Erreur lors du chargement des messages du groupe:", error);
+        console.error("Erreur lors du chargement des messages du groupe :", error);
     }
 
     // Ajouter un gestionnaire pour envoyer des messages
@@ -191,7 +200,11 @@ async function openGroupChat(group) {
 
         try {
             const currentUser = await getCurrentUser();
-            
+            if (!currentUser) {
+                console.error("Utilisateur connecté introuvable.");
+                return;
+            }
+
             const newMessage = {
                 groupId: group.id,
                 senderId: currentUser.id,
@@ -221,7 +234,7 @@ async function openGroupChat(group) {
             // Réinitialiser le champ de saisie
             input.value = "";
         } catch (error) {
-            console.error("Erreur lors de l'envoi du message:", error);
+            console.error("Erreur lors de l'envoi du message :", error);
         }
     };
 }

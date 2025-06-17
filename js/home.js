@@ -155,9 +155,7 @@ export function renderHome() {
     });
 
     element.querySelector("#logoutBtn").addEventListener("click", () => {
-        localStorage.removeItem('currentUser'); // Supprimer l'utilisateur actuel du stockage local
-        currentUser = null; // Réinitialiser la variable utilisateur
-        router.navigate("/login"); // Rediriger vers la page de connexion
+        handleLogout();
     });
 
     element.querySelector("#groupsBtn").addEventListener("click", async () => {
@@ -189,20 +187,22 @@ export function renderHome() {
 
             groups.forEach(group => {
                 const li = document.createElement("li");
-                li.className = "flex items-center justify-between space-x-2 p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors";
+                li.className = "flex items-center space-x-3 p-2 hover:bg-gray-100 rounded-lg cursor-pointer";
+                li.setAttribute("data-group-id", group.id); // Ajouter un attribut pour identifier le groupe
 
                 li.innerHTML = `
-                    <img src="${group.avatar || 'https://via.placeholder.com/50'}" class="w-10 h-10 rounded-full object-cover">
-                    <div class="flex-1 min-w-0 ml-3">
-                        <div class="flex justify-between items-center">
-                            <p class="font-semibold text-gray-900 truncate">${group.name}</p>
-                            <span class="text-xs text-gray-400">${new Date(group.createdAt).toLocaleDateString()}</span>
-                        </div>
-                        <p class="text-sm text-gray-500 truncate">${group.lastMessage || "Aucun message"}</p>
+                    <img src="${group.avatar || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full">
+                    <div class="flex-1">
+                        <p class="font-semibold text-gray-900">${group.name}</p>
+                        <p class="text-sm text-gray-500 last-message">${group.lastMessage || 'Aucun message'}</p>
+                        <span class="text-xs text-gray-400 last-time">${group.lastMessageTimestamp ? new Date(group.lastMessageTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
                     </div>
                 `;
 
-                li.addEventListener("click", () => openGroupChat(group)); // Ouvrir la conversation du groupe
+                li.addEventListener("click", () => {
+                    openGroupChat(group); // Ouvrir la conversation du groupe
+                });
+
                 contactsList.appendChild(li);
             });
         } catch (error) {
@@ -295,8 +295,11 @@ function updateUserProfile(user) {
 async function loadContacts(query = "") {
     try {
         const contactsResponse = await fetch("https://json-server-vpom.onrender.com/contacts");
+        const groupsResponse = await fetch("https://json-server-vpom.onrender.com/groups");
         const messagesResponse = await fetch("https://json-server-vpom.onrender.com/messages");
+
         const contacts = await contactsResponse.json();
+        const groups = await groupsResponse.json();
         const messages = await messagesResponse.json();
 
         const contactsList = document.getElementById("contactsList");
@@ -313,26 +316,26 @@ async function loadContacts(query = "") {
             return;
         }
 
-        const filteredContacts = contacts.filter(contact =>
-            contact.name.toLowerCase().includes(query.toLowerCase()) || contact.phone.includes(query)
-        );
+        const allConversations = [...contacts, ...groups].map(conversation => {
+            const isGroup = conversation.members !== undefined; // Vérifie si c'est un groupe
+            const conversationMessages = messages.filter(msg =>
+                isGroup
+                    ? msg.groupId === conversation.id
+                    : (msg.senderId === conversation.id && msg.receiverId === currentUser.id) ||
+                      (msg.senderId === currentUser.id && msg.receiverId === conversation.id)
+            );
+            const lastMessage = conversationMessages[conversationMessages.length - 1];
+            return {
+                conversation,
+                lastMessage,
+                lastTimestamp: lastMessage ? lastMessage.timestamp : 0,
+                isGroup,
+            };
+        });
 
-        const sortedContacts = filteredContacts
-            .map(contact => {
-                const contactMessages = messages.filter(msg =>
-                    (msg.senderId === contact.id && msg.receiverId === currentUser.id) ||
-                    (msg.senderId === currentUser.id && msg.receiverId === contact.id)
-                );
-                const lastMessage = contactMessages[contactMessages.length - 1];
-                return {
-                    contact,
-                    lastMessage,
-                    lastTimestamp: lastMessage ? lastMessage.timestamp : 0
-                };
-            })
-            .sort((a, b) => b.lastTimestamp - a.lastTimestamp);
+        const sortedConversations = allConversations.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
 
-        sortedContacts.forEach(({ contact, lastMessage }) => {
+        sortedConversations.forEach(({ conversation, lastMessage, isGroup }) => {
             const lastMessageText = lastMessage
                 ? (lastMessage.content.length > 30
                     ? lastMessage.content.substring(0, 30) + "..."
@@ -347,22 +350,29 @@ async function loadContacts(query = "") {
             li.className = "flex items-center justify-between space-x-2 p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors";
 
             li.innerHTML = `
-                <img src="${contact.avatar || 'https://via.placeholder.com/50'}" 
+                <img src="${conversation.avatar || 'https://via.placeholder.com/50'}" 
                      class="w-10 h-10 rounded-full object-cover">
                 <div class="flex-1 min-w-0 ml-3">
                     <div class="flex justify-between items-center">
-                        <p class="font-semibold text-gray-900 truncate">${contact.name} ${contact.phone === currentUser.phone ? '<span class="text-green-500">(vous)</span>' : ''}</p>
+                        <p class="font-semibold text-gray-900 truncate">${conversation.name}</p>
                         <span class="text-xs text-gray-400">${lastTime}</span>
                     </div>
                     <p class="text-sm text-gray-500 truncate">${lastMessageText}</p>
                 </div>
             `;
 
-            li.addEventListener("click", () => openChat(contact));
+            li.addEventListener("click", () => {
+                if (isGroup) {
+                    openGroupChat(conversation);
+                } else {
+                    openChat(conversation);
+                }
+            });
+
             contactsList.appendChild(li);
         });
     } catch (error) {
-        console.error("Erreur lors du chargement des contacts :", error);
+        console.error("Erreur lors du chargement des contacts et groupes :", error);
     }
 }
 
@@ -686,39 +696,29 @@ async function handleLogin(event) {
     }
 }
 
-async function loadGroups() {
+export async function loadGroupsInContainer(container) {
     try {
         const response = await fetch("https://json-server-vpom.onrender.com/groups");
-        if (!response.ok) {
-            throw new Error(`Erreur HTTP: ${response.status}`);
-        }
-
         const groups = await response.json();
-        const contactsList = document.getElementById("contactsList");
-        if (!contactsList) {
-            console.error("Élément DOM 'contactsList' introuvable.");
-            return;
-        }
 
-        contactsList.innerHTML = ""; 
+        container.innerHTML = ""; // Vider le conteneur avant d'ajouter les groupes
 
         groups.forEach(group => {
             const li = document.createElement("li");
-            li.className = "flex items-center justify-between space-x-2 p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors";
-
+            li.className = "flex items-center space-x-3 p-2 hover:bg-gray-100 rounded-lg cursor-pointer";
             li.innerHTML = `
-                <img src="${group.avatar || 'https://via.placeholder.com/50'}" class="w-10 h-10 rounded-full object-cover">
-                <div class="flex-1 min-w-0 ml-3">
-                    <div class="flex justify-between items-center">
-                        <p class="font-semibold text-gray-900 truncate">${group.name}</p>
-                        <span class="text-xs text-gray-400">${new Date(group.createdAt).toLocaleDateString()}</span>
-                    </div>
-                    <p class="text-sm text-gray-500 truncate">${group.lastMessage || "Aucun message"}</p>
+                <img src="${group.avatar || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full">
+                <div class="flex-1">
+                    <p class="font-semibold text-gray-900">${group.name}</p>
+                    <p class="text-sm text-gray-500">${group.description || 'Aucun détail disponible'}</p>
                 </div>
             `;
 
-            li.addEventListener("click", () => openGroupChat(group));
-            contactsList.appendChild(li);
+            li.addEventListener("click", () => {
+                openGroupChat(group); // Ouvrir la conversation du groupe
+            });
+
+            container.appendChild(li);
         });
     } catch (error) {
         console.error("Erreur lors du chargement des groupes :", error);
@@ -765,6 +765,37 @@ async function sendGroupMessage(groupId) {
     }
 }
 
+function handleLogout() {
+    localStorage.removeItem('currentUser'); // Supprimer l'utilisateur actuel du stockage local
+    currentUser = null; // Réinitialiser la variable utilisateur
+    router.navigate("/login"); // Rediriger vers la page de connexion
+}
+
+function attachLogoutHandler() {
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn) {
+        // Supprimer tout gestionnaire existant pour éviter les doublons
+        logoutBtn.removeEventListener("click", handleLogout);
+
+        // Ajouter le gestionnaire de déconnexion
+        logoutBtn.addEventListener("click", handleLogout);
+    }
+}
+
+function updateLastMessageInGroups(groupId, lastMessageContent, timestamp) {
+    const groupItem = document.querySelector(`[data-group-id="${groupId}"]`);
+    if (!groupItem) return;
+
+    const lastMessageElement = groupItem.querySelector(".last-message");
+    const lastTimeElement = groupItem.querySelector(".last-time");
+
+    lastMessageElement.textContent = lastMessageContent.length > 30
+        ? lastMessageContent.substring(0, 30) + "..."
+        : lastMessageContent;
+
+    lastTimeElement.textContent = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 async function openGroupChat(group) {
     const chatHeader = document.getElementById("chatHeader");
     const messagesDiv = document.getElementById("messages");
@@ -772,14 +803,19 @@ async function openGroupChat(group) {
     const input = document.getElementById("messageInput");
     const sendButton = document.getElementById("sendMessage");
 
-    // Afficher l'aen-tête du groupe
+    if (!chatHeader || !messagesDiv || !messageInputArea || !input || !sendButton) {
+        console.error("Éléments DOM nécessaires introuvables pour afficher le groupe.");
+        return;
+    }
+
+    // Afficher l'en-tête du groupe
     chatHeader.classList.remove("hidden");
     chatHeader.innerHTML = `
         <div class="flex items-center space-x-3">
-            <img src="${group.avatar || 'https://via.placeholder.com/50'}" class="w-10 h-10 rounded-full object-cover">
+            <img src="${group.avatar || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full">
             <div>
                 <p class="font-semibold text-gray-900">${group.name}</p>
-                <p class="text-sm text-gray-500">${group.description || "Aucun détail disponible"}</p>
+                <p class="text-sm text-gray-500">${group.description || 'Aucun détail disponible'}</p>
             </div>
         </div>
     `;
@@ -789,8 +825,16 @@ async function openGroupChat(group) {
     messageInputArea.classList.remove("hidden");
 
     try {
+        // Charger les messages du groupe via l'API
         const response = await fetch(`https://json-server-vpom.onrender.com/messages?groupId=${group.id}`);
+        if (!response.ok) {
+            throw new Error(`Erreur HTTP: ${response.status}`);
+        }
+
         const messages = await response.json();
+
+        // Récupérer l'utilisateur actuel
+        const currentUser = await getCurrentUser();
 
         messages.forEach(msg => {
             const isMe = msg.senderId === currentUser.id;
@@ -812,34 +856,48 @@ async function openGroupChat(group) {
         console.error("Erreur lors du chargement des messages du groupe :", error);
     }
 
+    // Ajouter un gestionnaire pour envoyer des messages
     sendButton.onclick = async () => {
         const messageContent = input.value.trim();
         if (!messageContent) return;
 
-        const newMessage = {
-            groupId: group.id,
-            senderId: currentUser.id,
-            content: messageContent,
-            timestamp: Date.now(),
-        };
+        try {
+            const currentUser = await getCurrentUser();
+            if (!currentUser) {
+                console.error("Utilisateur connecté introuvable.");
+                return;
+            }
 
-        await fetch("https://json-server-vpom.onrender.com/messages", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(newMessage),
-        });
+            const newMessage = {
+                groupId: group.id,
+                senderId: currentUser.id,
+                content: messageContent,
+                timestamp: Date.now(),
+            };
 
-        const div = document.createElement("div");
-        div.className = `flex justify-end mb-3`;
-        div.innerHTML = `
-            <div class="max-w-xs px-4 py-2 rounded-lg shadow-sm bg-green-500 text-white">
-                <p>${newMessage.content}</p>
-                <div class="text-right text-xs mt-1 opacity-70">${new Date(newMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-            </div>
-        `;
-        messagesDiv.appendChild(div);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            // Envoyer le message au serveur
+            await fetch("https://json-server-vpom.onrender.com/messages", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(newMessage),
+            });
 
-        input.value = "";
+            // Ajouter le message directement à la conversation
+            const div = document.createElement("div");
+            div.className = `flex justify-end mb-3`;
+            div.innerHTML = `
+                <div class="max-w-xs px-4 py-2 rounded-lg shadow-sm bg-green-500 text-white">
+                    <p>${newMessage.content}</p>
+                    <div class="text-right text-xs mt-1 opacity-70">${new Date(newMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                </div>
+            `;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+            // Réinitialiser le champ de saisie
+            input.value = "";
+        } catch (error) {
+            console.error("Erreur lors de l'envoi du message :", error);
+        }
     };
 }
