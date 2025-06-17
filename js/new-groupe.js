@@ -1,11 +1,13 @@
 import { renderNewDiscussion } from "./new-discussion";
 
 export function renderNewGroupe() {
-    const container = document.createElement("div");
-    container.id = "newGroupForm";
-    container.className = "bg-white border-r border-gray-200 flex flex-col h-full w-full p-4";
+    const partie2 = document.getElementById("partie2");
+    if (!partie2) {
+        console.error("Élément 'partie2' introuvable.");
+        return;
+    }
 
-    container.innerHTML = `
+    partie2.innerHTML = `
         <!-- FORMULAIRE DE NOUVEAU GROUPE -->
         <div class="flex items-center justify-between mb-4">
             <div class="flex items-center space-x-3">
@@ -32,12 +34,10 @@ export function renderNewGroupe() {
             <div>
                 <label class="block text-sm text-gray-700 mb-2">Membres du groupe <span class="text-red-500">*</span></label>
                 <p class="text-sm text-gray-500 mb-2">Liste des contacts :</p>
-                <!-- Ajout d'un indicateur de chargement -->
                 <div id="loadingContacts" class="text-sm text-blue-500 mb-2">Chargement des contacts...</div>
                 <ul id="contactsList" class="max-h-48 overflow-y-auto border p-2 rounded bg-gray-50 text-sm space-y-1 hidden">
                     <!-- Les contacts seront affichés ici -->
                 </ul>
-                <!-- Message d'erreur -->
                 <div id="contactsError" class="text-sm text-red-500 mb-2 hidden"></div>
             </div>
 
@@ -51,21 +51,18 @@ export function renderNewGroupe() {
     `;
 
     // Ajouter les event listeners
-    container.querySelector("#backToNewDiscussionBtn").addEventListener("click", () => {
+    partie2.querySelector("#backToNewDiscussionBtn").addEventListener("click", () => {
         const partie2 = document.getElementById("partie2");
         partie2.innerHTML = "";
         partie2.appendChild(renderNewDiscussion());
     });
 
-    container.querySelector("#groupForm").addEventListener("submit", handleNewGroup);
+    partie2.querySelector("#groupForm").addEventListener("submit", handleNewGroup);
 
-    // IMPORTANT: Charger la liste des contacts APRÈS que le container soit ajouté au DOM
-    // Utiliser setTimeout pour s'assurer que le DOM est prêt
+    // Charger la liste des contacts après que le container soit ajouté au DOM
     setTimeout(() => {
         loadContactsList();
     }, 100);
-
-    return container;
 }
 
 async function loadContactsList() {

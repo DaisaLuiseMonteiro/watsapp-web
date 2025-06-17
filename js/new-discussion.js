@@ -1,6 +1,7 @@
 import { router } from "./route";
 import { loadMessages } from "./home";
 import { renderNewContact } from "./new-contact";
+import { renderNewGroupe } from "./new-groupe"; // ← AJOUT DE CETTE LIGNE
 
 export function renderNewDiscussion() {
     const partie2 = document.getElementById("partie2"); 
@@ -88,13 +89,16 @@ export function renderNewDiscussion() {
     });
 
     partie2.querySelector("#newGroupBtn").addEventListener("click", () => {
-        router("/new-groupe"); 
+        console.log("Bouton Nouveau groupe cliqué"); // Debug
+        renderNewGroupe(); // Maintenant cette fonction est importée
     });
 
     partie2.querySelector("#newContactBtn").addEventListener("click", () => {
         renderNewContact(); 
     });
 }
+
+// Reste du code inchangé...
 async function loadContacts() {
     try {
         const response = await fetch("https://json-server-vpom.onrender.com/contacts");
@@ -163,6 +167,7 @@ async function filterContacts(query) {
         console.error("Erreur filtrage contacts :", error);
     }
 }
+
 async function openChat(contact) {
     const header = document.getElementById("chatHeader");
     const messagesDiv = document.getElementById("messages");
