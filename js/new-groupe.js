@@ -32,9 +32,13 @@ export function renderNewGroupe() {
             <div>
                 <label class="block text-sm text-gray-700 mb-2">Membres du groupe <span class="text-red-500">*</span></label>
                 <p class="text-sm text-gray-500 mb-2">Liste des contacts :</p>
-                <ul id="contactsList" class="max-h-48 overflow-y-auto border p-2 rounded bg-gray-50 text-sm space-y-1">
+                <!-- Ajout d'un indicateur de chargement -->
+                <div id="loadingContacts" class="text-sm text-blue-500 mb-2">Chargement des contacts...</div>
+                <ul id="contactsList" class="max-h-48 overflow-y-auto border p-2 rounded bg-gray-50 text-sm space-y-1 hidden">
                     <!-- Les contacts seront affichés ici -->
                 </ul>
+                <!-- Message d'erreur -->
+                <div id="contactsError" class="text-sm text-red-500 mb-2 hidden"></div>
             </div>
 
             <div id="messageContainer" class="text-sm text-red-500 mt-2"></div>
@@ -46,6 +50,7 @@ export function renderNewGroupe() {
         </form>
     `;
 
+    // Ajouter les event listeners
     container.querySelector("#backToNewDiscussionBtn").addEventListener("click", () => {
         const partie2 = document.getElementById("partie2");
         partie2.innerHTML = "";
@@ -54,21 +59,35 @@ export function renderNewGroupe() {
 
     container.querySelector("#groupForm").addEventListener("submit", handleNewGroup);
 
-    // Charger la liste des contacts
-    loadContactsList();
+    // IMPORTANT: Charger la liste des contacts APRÈS que le container soit ajouté au DOM
+    // Utiliser setTimeout pour s'assurer que le DOM est prêt
+    setTimeout(() => {
+        loadContactsList();
+    }, 100);
 
     return container;
 }
 
 async function loadContactsList() {
     const listEl = document.getElementById("contactsList");
+    const loadingEl = document.getElementById("loadingContacts");
+    const errorEl = document.getElementById("contactsError");
+    
     if (!listEl) {
         console.error("Élément DOM 'contactsList' introuvable.");
         return;
     }
 
     try {
+        // Afficher le loading
+        if (loadingEl) loadingEl.classList.remove("hidden");
+        if (errorEl) errorEl.classList.add("hidden");
+        listEl.classList.add("hidden");
+
+        console.log("Début du chargement des contacts...");
+        
         const response = await fetch("https://json-server-vpom.onrender.com/contacts");
+        
         if (!response.ok) {
             throw new Error(`Erreur HTTP: ${response.status}`);
         }
@@ -76,38 +95,72 @@ async function loadContactsList() {
         const contacts = await response.json();
         console.log("Contacts récupérés :", contacts);
 
+        // Vérifier si on a des contacts
+        if (!contacts || contacts.length === 0) {
+            throw new Error("Aucun contact trouvé");
+        }
+
         const currentUser = JSON.parse(localStorage.getItem("currentUser"));
         if (!currentUser) {
             console.error("Utilisateur connecté introuvable.");
-            return;
+            throw new Error("Utilisateur non connecté");
         }
 
+        // Masquer le loading et afficher la liste
+        if (loadingEl) loadingEl.classList.add("hidden");
+        listEl.classList.remove("hidden");
         listEl.innerHTML = ""; // Réinitialise la liste des contacts
 
-        contacts.forEach(contact => {
+        let contactsAdded = 0;
+
+        contacts.forEach((contact, index) => {
             if (!contact.name || !contact.phone) {
                 console.warn("Contact invalide :", contact);
                 return;
             }
 
-            // Ajouter chaque contact directement dans la liste
-            listEl.innerHTML += `
-                <li class="flex items-center space-x-2">
-                    <input type="checkbox" id="contact-${contact.id}" value="${contact.phone}" class="accent-green-500">
-                    <label for="contact-${contact.id}" class="text-gray-700">${contact.name}</label>
-                </li>
+            // Créer l'élément li
+            const listItem = document.createElement("li");
+            listItem.className = "flex items-center space-x-2";
+            
+            listItem.innerHTML = `
+                <input type="checkbox" id="contact-${contact.id || index}" value="${contact.phone}" class="accent-green-500">
+                <label for="contact-${contact.id || index}" class="text-gray-700">${contact.name} (${contact.phone})</label>
             `;
+
+            listEl.appendChild(listItem);
+            contactsAdded++;
         });
 
-        // Ajouter l'utilisateur connecté comme membre par défaut
-        const currentUserCheckbox = document.querySelector(`#contact-${currentUser.id}`);
+        console.log(`${contactsAdded} contacts ajoutés à la liste`);
+
+        // Cocher l'utilisateur connecté par défaut (si il existe dans la liste)
+        const currentUserCheckbox = document.querySelector(`input[value="${currentUser.phone}"]`);
         if (currentUserCheckbox) {
             currentUserCheckbox.checked = true;
             currentUserCheckbox.disabled = true;
+            console.log("Utilisateur connecté coché par défaut");
+        } else {
+            console.log("L'utilisateur connecté n'est pas dans la liste des contacts");
         }
+
+        // Si aucun contact n'a été ajouté
+        if (contactsAdded === 0) {
+            listEl.innerHTML = `<li class="text-gray-500 italic">Aucun contact disponible</li>`;
+        }
+
     } catch (error) {
         console.error("Erreur lors de la récupération des contacts :", error);
-        listEl.innerHTML = `<li class="text-red-500">Erreur lors du chargement des contacts.</li>`;
+        
+        // Masquer le loading et afficher l'erreur
+        if (loadingEl) loadingEl.classList.add("hidden");
+        if (errorEl) {
+            errorEl.textContent = `Erreur: ${error.message}`;
+            errorEl.classList.remove("hidden");
+        }
+        
+        listEl.classList.remove("hidden");
+        listEl.innerHTML = `<li class="text-red-500">Erreur lors du chargement des contacts: ${error.message}</li>`;
     }
 }
 
@@ -169,6 +222,7 @@ async function handleNewGroup(event) {
         const newGroup = {
             id: `group${groups.length + 1}`,
             name,
+            description, // Ajout de la description
             avatar: avatarUrl,
             members: selectedPhones,
             createdAt: Date.now(),
@@ -186,9 +240,12 @@ async function handleNewGroup(event) {
             throw new Error("Erreur lors de l'enregistrement du groupe.");
         }
 
+        console.log("Groupe créé avec succès:", newGroup);
+        
         const partie2 = document.getElementById("partie2");
         partie2.innerHTML = "";
         partie2.appendChild(renderNewDiscussion());
+        
     } catch (error) {
         console.error("Erreur lors de l'enregistrement du groupe :", error);
         messageContainer.textContent = "Une erreur est survenue. Veuillez réessayer.";

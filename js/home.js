@@ -1,5 +1,6 @@
 import { renderLogin } from "./login";
 import { renderNewDiscussion } from "./new-discussion";
+import { renderGroupe } from "./groupe.js";
 
 let currentUser = null;
 
@@ -11,7 +12,9 @@ export const router = {
         if (path === "/login") {
             app.appendChild(renderLogin());
         } else if (path === "/home") {
-            app.appendChild(renderHome());
+            app.appendChild(renderHome(
+          
+            ));
         }
     }
 };
@@ -159,11 +162,29 @@ export function renderHome() {
     });
 
     element.querySelector("#groupsBtn").addEventListener("click", () => {
-        loadGroups();
+        const contactsList = document.getElementById("contactsList");
+        if (!contactsList) {
+            console.error("Élément DOM 'contactsList' introuvable.");
+            return;
+        }
+
+        contactsList.innerHTML = ""; // Vider la liste des conversations
+
+        // Charger la liste des groupes
+        loadGroups(contactsList);
     });
 
     element.querySelector("#allContactsBtn").addEventListener("click", () => {
-        loadContacts(); 
+        const contactsList = document.getElementById("contactsList");
+        if (!contactsList) {
+            console.error("Élément DOM 'contactsList' introuvable.");
+            return;
+        }
+
+        contactsList.innerHTML = ""; // Vider la liste des groupes
+
+        // Recharger la liste des contacts
+        loadContacts();
     });
 
     element.addEventListener("input", () => {
@@ -256,12 +277,11 @@ async function loadContacts(query = "") {
 
         const sortedContacts = filteredContacts
             .map(contact => {
-                const contactMessages = messages.filter(
-                    msg => (msg.senderId === contact.id && msg.receiverId === currentUser.id) ||
-                           (msg.senderId === currentUser.id && msg.receiverId === contact.id)
+                const contactMessages = messages.filter(msg =>
+                    (msg.senderId === contact.id && msg.receiverId === currentUser.id) ||
+                    (msg.senderId === currentUser.id && msg.receiverId === contact.id)
                 );
-
-                const lastMessage = contactMessages.length > 0 ? contactMessages[contactMessages.length - 1] : null;
+                const lastMessage = contactMessages[contactMessages.length - 1];
                 return {
                     contact,
                     lastMessage,
@@ -271,17 +291,25 @@ async function loadContacts(query = "") {
             .sort((a, b) => b.lastTimestamp - a.lastTimestamp);
 
         sortedContacts.forEach(({ contact, lastMessage }) => {
-            const lastMessageText = lastMessage ? lastMessage.content : "Aucun message";
-            const lastTime = lastMessage ? new Date(lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
+            const lastMessageText = lastMessage
+                ? (lastMessage.content.length > 30
+                    ? lastMessage.content.substring(0, 30) + "..."
+                    : lastMessage.content)
+                : "Aucun message";
+
+            const lastTime = lastMessage
+                ? new Date(lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : "";
 
             const li = document.createElement("li");
             li.className = "flex items-center justify-between space-x-2 p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors";
 
             li.innerHTML = `
-                <img src="${contact.avatar || 'https://via.placeholder.com/50'}" class="w-10 h-10 rounded-full object-cover">
+                <img src="${contact.avatar || 'https://via.placeholder.com/50'}" 
+                     class="w-10 h-10 rounded-full object-cover">
                 <div class="flex-1 min-w-0 ml-3">
                     <div class="flex justify-between items-center">
-                        <p class="font-semibold text-gray-900 truncate">${contact.name}</p>
+                        <p class="font-semibold text-gray-900 truncate">${contact.name} ${contact.phone === currentUser.phone ? '<span class="text-green-500">(vous)</span>' : ''}</p>
                         <span class="text-xs text-gray-400">${lastTime}</span>
                     </div>
                     <p class="text-sm text-gray-500 truncate">${lastMessageText}</p>
@@ -292,7 +320,7 @@ async function loadContacts(query = "") {
             contactsList.appendChild(li);
         });
     } catch (error) {
-        console.error("Erreur chargement contacts :", error);
+        console.error("Erreur lors du chargement des contacts :", error);
     }
 }
 
